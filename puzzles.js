@@ -282,23 +282,70 @@ const RotatingLock = {
 /* ---- Wire / Pipe Connect ---- */
 const WC_PAIR_COLORS = ['#ffb454', '#4dd8ff', '#ff6b9d', '#8aff6b'];
 
+// Carves a short random walk through cells not already claimed by an
+// earlier pair. The whole walk (not just its two endpoints) is reserved,
+// so every pair keeps a guaranteed obstacle-free route for the entire
+// game, no matter what order the player solves them in.
+//
+// Previously endpoints were placed by picking two random free cells per
+// pair. That could box a pair in completely: since solved endpoints stay
+// on the board as permanent obstacles, a pair could end up with zero
+// valid paths depending on where the other pairs landed, making the
+// room unsolvable. Testing caught this by simulating solves across many
+// random layouts (see the wire-connect trials in the project's own test
+// notes) -- some fraction of generated 4x4/2-pair rooms had no solution.
+function wcCarvePath(gridSize, occupied) {
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const isFree = (r, c) => r >= 0 && c >= 0 && r < gridSize && c < gridSize && !occupied.has(r + ',' + c);
+
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const start = [prRandomInt(0, gridSize - 1), prRandomInt(0, gridSize - 1)];
+    if (!isFree(start[0], start[1])) continue;
+    const path = [start];
+    const visited = new Set([start[0] + ',' + start[1]]);
+    const targetLen = 2 + prRandomInt(0, Math.min(3, gridSize - 1));
+    let stuck = false;
+    while (path.length < targetLen) {
+      const [r, c] = path[path.length - 1];
+      const next = prShuffle(dirs)
+        .map(([dr, dc]) => [r + dr, c + dc])
+        .find(([nr, nc]) => isFree(nr, nc) && !visited.has(nr + ',' + nc));
+      if (!next) { stuck = true; break; }
+      path.push(next);
+      visited.add(next[0] + ',' + next[1]);
+    }
+    if (!stuck && path.length >= 2) return path;
+  }
+  return null;
+}
+
 const WireConnect = {
   generate(params) {
     const gridSize = params.gridSize || 4;
-    const pairs = Math.min(params.pairs || 2, WC_PAIR_COLORS.length);
+    const requestedPairs = Math.min(params.pairs || 2, WC_PAIR_COLORS.length);
     const cells = Array.from({ length: gridSize }, () => Array.from({ length: gridSize }, () => null));
-    const allCoords = [];
-    for (let r = 0; r < gridSize; r++) for (let c = 0; c < gridSize; c++) allCoords.push([r, c]);
-    const shuffled = prShuffle(allCoords);
+    const occupied = new Set();
     const endpoints = [];
-    for (let p = 0; p < pairs; p++) {
-      const a = shuffled.pop();
-      const b = shuffled.pop();
-      cells[a[0]][a[1]] = { kind: 'endpoint', pair: p };
-      cells[b[0]][b[1]] = { kind: 'endpoint', pair: p };
+    let pairIndex = 0;
+
+    for (let p = 0; p < requestedPairs; p++) {
+      const path = wcCarvePath(gridSize, occupied);
+      if (!path) break; // grid is full; stop rather than place an unsolvable pair
+      path.forEach(([r, c]) => occupied.add(r + ',' + c));
+      const a = path[0];
+      const b = path[path.length - 1];
+      cells[a[0]][a[1]] = { kind: 'endpoint', pair: pairIndex };
+      cells[b[0]][b[1]] = { kind: 'endpoint', pair: pairIndex };
       endpoints.push([a, b]);
+      pairIndex++;
     }
-    return { gridSize, pairs, cells, endpoints, connected: Array(pairs).fill(false), activePair: null, currentPath: [] };
+
+    return {
+      gridSize, pairs: pairIndex, cells, endpoints,
+      connected: Array(pairIndex).fill(false),
+      activePair: null,
+      currentPath: [],
+    };
   },
   mount(state, container, onSolved) {
     container.innerHTML = '';
