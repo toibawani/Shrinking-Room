@@ -2,10 +2,14 @@
 // Core loop: screen navigation plus the shrinking-room timer/canvas mechanic.
 // Puzzle content is still a stub here — real puzzle types land next.
 
+const STORAGE_KEY = 'shrinkingRoomState_v1';
+const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
+
 const GameState = {
   baseScreen: 'screen-menu',
   currentLevelIndex: 0,
   puzzleIndexInLevel: 0,
+  combo: 0,
   elapsed: 0,
   currentNotch: 0,
   displayedRoomSize: 520,
@@ -16,6 +20,36 @@ const GameState = {
 };
 
 function $(id) { return document.getElementById(id); }
+
+function defaultPersisted() { return { bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber' }; }
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? Object.assign(defaultPersisted(), JSON.parse(raw)) : defaultPersisted();
+  } catch (e) { return defaultPersisted(); }
+}
+function savePersisted() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)); } catch (e) {} }
+let persisted = null;
+
+function renderThemeSwatches() {
+  const wrap = $('theme-swatches');
+  wrap.innerHTML = '';
+  ['amber', 'cyan', 'violet', 'emerald'].forEach(theme => {
+    const unlocked = persisted.unlockedThemes.includes(theme);
+    const swatch = document.createElement('button');
+    swatch.className = 'theme-swatch theme-' + theme + (unlocked ? '' : ' locked');
+    swatch.disabled = !unlocked;
+    if (unlocked) {
+      swatch.addEventListener('click', () => {
+        persisted.currentTheme = theme;
+        document.body.dataset.theme = theme;
+        savePersisted();
+        renderThemeSwatches();
+      });
+    }
+    wrap.appendChild(swatch);
+  });
+}
 function formatTime(s) { return Math.max(0, s).toFixed(1); }
 function getCurrentLevelData() { return LEVELS[GameState.currentLevelIndex]; }
 
@@ -40,7 +74,7 @@ function renderLevelGrid() {
 function bindEvents() {
   $('btn-play').addEventListener('click', () => startLevel(0));
   $('btn-level-select').addEventListener('click', () => { renderLevelGrid(); switchBaseScreen('screen-level-select'); });
-  $('btn-settings').addEventListener('click', () => switchBaseScreen('screen-settings'));
+  $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); switchBaseScreen('screen-settings'); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
 }
@@ -75,10 +109,28 @@ function handlePuzzleSolved() {
   if (GameState.puzzleIndexInLevel < level.puzzles.length) {
     mountCurrentPuzzle();
   } else {
-    GameState.isPlaying = false;
-    alert('Room cleared!');
-    switchBaseScreen('screen-menu');
+    handleLevelComplete();
   }
+}
+
+function handleLevelComplete() {
+  GameState.isPlaying = false;
+  const level = getCurrentLevelData();
+  const timeTaken = GameState.elapsed;
+  const prevBest = persisted.bestTimes[level.id];
+  if (prevBest === undefined || timeTaken < prevBest) persisted.bestTimes[level.id] = timeTaken;
+
+  if (timeTaken <= level.timeLimit * 0.6) GameState.combo++; else GameState.combo = 0;
+
+  Object.keys(THEME_UNLOCK_COMBOS).forEach(theme => {
+    if (GameState.combo >= THEME_UNLOCK_COMBOS[theme] && !persisted.unlockedThemes.includes(theme)) {
+      persisted.unlockedThemes.push(theme);
+    }
+  });
+  savePersisted();
+
+  alert(`Room cleared! Streak: ${GameState.combo}`);
+  switchBaseScreen('screen-menu');
 }
 
 function triggerWallShrink(notchIndex, level) {
@@ -150,6 +202,8 @@ function gameLoopTick(timestamp) {
 }
 
 function initGame() {
+  persisted = loadPersisted();
+  document.body.dataset.theme = persisted.currentTheme;
   renderLevelGrid();
   bindEvents();
   requestAnimationFrame(gameLoopTick);

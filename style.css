@@ -109,3 +109,18 @@ body {
 .wb-objects { display: flex; flex-wrap: wrap; gap: 3%; justify-content: center; }
 .wb-chip { width: 15%; min-width: 40px; aspect-ratio: 1; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk); cursor: pointer; }
 .wb-chip.selected { background: var(--accent); color: #1a1200; }
+
+/* ---------------- Themes & settings ---------------- */
+body[data-theme="cyan"]    { --accent: #4fb8e0; }
+body[data-theme="violet"]  { --accent: #a878d1; }
+body[data-theme="emerald"] { --accent: #7fae72; }
+
+.settings-block { width: min(420px, 92vw); margin-bottom: 24px; text-align: left; }
+.settings-block h3 { font-size: 1.1rem; margin-bottom: 10px; }
+.theme-swatches { display: flex; gap: 12px; }
+.theme-swatch { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--steel-border); cursor: pointer; }
+.theme-swatch.theme-amber   { background: #ff7a1a; }
+.theme-swatch.theme-cyan    { background: #4fb8e0; }
+.theme-swatch.theme-violet  { background: #a878d1; }
+.theme-swatch.theme-emerald { background: #7fae72; }
+.theme-swatch.locked { opacity: 0.25; filter: grayscale(1); cursor: not-allowed; }
