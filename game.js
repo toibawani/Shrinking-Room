@@ -5,6 +5,7 @@
 const GameState = {
   baseScreen: 'screen-menu',
   currentLevelIndex: 0,
+  puzzleIndexInLevel: 0,
   elapsed: 0,
   currentNotch: 0,
   displayedRoomSize: 520,
@@ -55,14 +56,29 @@ function startLevel(index) {
   switchBaseScreen('screen-game');
   GameState.isPlaying = true;
 
+  GameState.puzzleIndexInLevel = 0;
+  mountCurrentPuzzle();
+}
+
+function mountCurrentPuzzle() {
+  const level = getCurrentLevelData();
+  const puzzleConfig = level.puzzles[GameState.puzzleIndexInLevel];
   const layer = $('puzzle-layer');
-  const puzzleConfig = level.puzzles[0];
-  Puzzles.create(puzzleConfig.type, puzzleConfig.params, layer, () => {
+  Puzzles.create(puzzleConfig.type, puzzleConfig.params, layer, handlePuzzleSolved);
+  const multiTag = level.puzzles.length > 1 ? ` (${GameState.puzzleIndexInLevel + 1}/${level.puzzles.length})` : '';
+  $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type) + multiTag;
+}
+
+function handlePuzzleSolved() {
+  GameState.puzzleIndexInLevel++;
+  const level = getCurrentLevelData();
+  if (GameState.puzzleIndexInLevel < level.puzzles.length) {
+    mountCurrentPuzzle();
+  } else {
     GameState.isPlaying = false;
     alert('Room cleared!');
     switchBaseScreen('screen-menu');
-  });
-  $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type);
+  }
 }
 
 function triggerWallShrink(notchIndex, level) {
