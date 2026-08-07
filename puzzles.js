@@ -22,6 +22,7 @@ const PUZZLE_HINTS = {
   patternCompletion: 'Pick the tile that continues the pattern.',
   hiddenKey: 'One of these is not quite like the others.',
   symbolMemory: 'Watch the sequence, then repeat it in order.',
+  rotatingLock: 'Rotate each dial until it lines up with its mark.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -213,7 +214,70 @@ const SymbolMemory = {
   },
 };
 
-const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey, symbolMemory: SymbolMemory };
+/* ---- Rotating Lock ---- */
+const RotatingLock = {
+  generate(params) {
+    const dials = params.dials || 2;
+    const segments = params.segments || 6;
+    const linked = !!params.linked;
+    const target = [];
+    const current = [];
+    for (let i = 0; i < dials; i++) {
+      target.push(prRandomInt(0, segments - 1));
+      let start = prRandomInt(0, segments - 1);
+      if (start === target[i]) start = (start + 1) % segments;
+      current.push(start);
+    }
+    return { dials, segments, linked, target, current };
+  },
+  mount(state, container, onSolved) {
+    container.innerHTML = '';
+    const wrap = prMakeEl('div', 'rl-wrap');
+    container.appendChild(wrap);
+    const dialEls = [];
+    const pointerEls = [];
+    const angleStep = 360 / state.segments;
+
+    for (let i = 0; i < state.dials; i++) {
+      const dial = prMakeEl('div', 'rl-dial');
+      const ring = prMakeEl('div', 'rl-ring');
+      const target = prMakeEl('div', 'rl-mark target');
+      const pointer = prMakeEl('div', 'rl-mark pointer');
+      target.style.transform = `rotate(${state.target[i] * angleStep}deg)`;
+      pointer.style.transform = `rotate(${state.current[i] * angleStep}deg)`;
+      ring.appendChild(target);
+      ring.appendChild(pointer);
+      dial.appendChild(ring);
+      wrap.appendChild(dial);
+      dialEls.push(dial);
+      pointerEls.push(pointer);
+      dial.addEventListener('click', () => { if (!dial.classList.contains('solved')) rotateDial(i); });
+    }
+
+    function checkWin() {
+      let solved = true;
+      for (let i = 0; i < state.dials; i++) {
+        const ok = state.current[i] === state.target[i];
+        dialEls[i].classList.toggle('solved', ok);
+        if (!ok) solved = false;
+      }
+      if (solved) setTimeout(onSolved, 260);
+    }
+
+    function rotateDial(i) {
+      state.current[i] = (state.current[i] + 1) % state.segments;
+      pointerEls[i].style.transform = `rotate(${state.current[i] * angleStep}deg)`;
+      if (state.linked && i < state.dials - 1) {
+        state.current[i + 1] = (state.current[i + 1] + 1) % state.segments;
+        pointerEls[i + 1].style.transform = `rotate(${state.current[i + 1] * angleStep}deg)`;
+      }
+      checkWin();
+    }
+    return function destroy() {};
+  },
+};
+
+const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey, symbolMemory: SymbolMemory, rotatingLock: RotatingLock };
 
 const Puzzles = {
   create(type, params, container, onSolved) {

@@ -82,3 +82,12 @@ body {
 .sm-node.flash { background: var(--accent); color: #1a1200; }
 .sm-node.correct, .sm-node.solved { background: #7fae72; color: #0a1408; }
 .sm-node.wrong { background: #d1453f; color: #1a0a0a; }
+
+/* ---------------- Rotating Lock puzzle ---------------- */
+.rl-wrap { width: 92%; height: 92%; display: flex; align-items: center; justify-content: center; gap: 8%; }
+.rl-dial { width: min(30%, 150px); aspect-ratio: 1; cursor: pointer; }
+.rl-ring { width: 100%; height: 100%; border-radius: 50%; position: relative; background: var(--bg-concrete); border: 2px solid var(--steel-border); }
+.rl-mark { position: absolute; left: 50%; bottom: 50%; width: 8%; height: 44%; margin-left: -4%; transform-origin: 50% 100%; border-radius: 4px; }
+.rl-mark.target { background: #7fae72; opacity: 0.55; }
+.rl-mark.pointer { background: var(--accent); transition: transform 0.32s ease; }
+.rl-dial.solved .rl-mark.pointer { background: #7fae72; }
