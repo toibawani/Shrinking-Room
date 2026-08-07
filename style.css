@@ -41,3 +41,15 @@ body {
 .level-card { background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md); padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; color: var(--text-chalk); }
 .level-num { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
 .level-name { font-size: 0.84rem; }
+
+/* ---------------- HUD & stage ---------------- */
+#hud { width: 100%; display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 18px; }
+.hud-item { display: flex; flex-direction: column; align-items: center; }
+.hud-label { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; }
+.hud-value { font-size: 1.25rem; font-weight: 600; }
+#hud-timer.critical { color: #d1453f; }
+
+.stage-frame { width: 600px; height: 600px; margin: 0 auto; position: relative; }
+#game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: var(--radius-md); }
+#puzzle-layer { position: absolute; display: flex; align-items: center; justify-content: center; }
+.stage-hint { margin-top: 16px; color: var(--text-dim); font-size: 0.85rem; }
