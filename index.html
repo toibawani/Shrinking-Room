@@ -43,6 +43,8 @@
     <div id="hud">
       <div class="hud-item"><span class="hud-label">Room</span><span class="hud-value" id="hud-level">1</span></div>
       <div class="hud-item"><span class="hud-label">Time</span><span class="hud-value" id="hud-timer">00.0</span></div>
+      <div class="hud-item"><span class="hud-label">Best</span><span class="hud-value" id="hud-best">--</span></div>
+      <button class="hud-pause" id="btn-pause" type="button">❙❙</button>
     </div>
 
     <div class="stage-frame" id="stage-frame">
@@ -50,7 +52,38 @@
       <div id="puzzle-layer"></div>
     </div>
 
-    <p class="stage-hint" id="stage-hint">Placeholder puzzle — real puzzle types are next.</p>
+    <p class="stage-hint" id="stage-hint"></p>
+  </section>
+
+  <!-- PAUSE OVERLAY -->
+  <section id="screen-pause" class="screen overlay">
+    <div class="overlay-card">
+      <h2>Paused</h2>
+      <button class="btn btn-primary" id="btn-resume">Resume</button>
+      <button class="btn btn-secondary" id="btn-restart-from-pause">Restart Room</button>
+      <button class="btn btn-secondary" id="btn-menu-from-pause">Main Menu</button>
+    </div>
+  </section>
+
+  <!-- GAME OVER OVERLAY -->
+  <section id="screen-game-over" class="screen overlay">
+    <div class="overlay-card overlay-danger">
+      <h2>Crushed.</h2>
+      <p class="overlay-stat">You survived <span id="game-over-time">0</span>s</p>
+      <button class="btn btn-primary" id="btn-retry">Retry</button>
+      <button class="btn btn-secondary" id="btn-menu-from-gameover">Main Menu</button>
+    </div>
+  </section>
+
+  <!-- LEVEL COMPLETE OVERLAY -->
+  <section id="screen-level-complete" class="screen overlay">
+    <div class="overlay-card overlay-success">
+      <h2>Room Cleared</h2>
+      <p class="overlay-stat">Time: <span id="complete-time">0</span>s</p>
+      <p class="overlay-stat">Streak: <span id="complete-combo">0</span></p>
+      <button class="btn btn-primary" id="btn-next-level">Next Room</button>
+      <button class="btn btn-secondary" id="btn-menu-from-complete">Main Menu</button>
+    </div>
   </section>
 
 </div>

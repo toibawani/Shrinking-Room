@@ -10,6 +10,7 @@ const GameState = {
   currentLevelIndex: 0,
   puzzleIndexInLevel: 0,
   combo: 0,
+  isPaused: false,
   elapsed: 0,
   currentNotch: 0,
   displayedRoomSize: 520,
@@ -54,10 +55,12 @@ function formatTime(s) { return Math.max(0, s).toFixed(1); }
 function getCurrentLevelData() { return LEVELS[GameState.currentLevelIndex]; }
 
 function switchBaseScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => { if (!s.classList.contains('overlay')) s.classList.remove('active'); });
   $(id).classList.add('active');
   GameState.baseScreen = id;
 }
+function showOverlay(id) { $(id).classList.add('active'); }
+function hideOverlay(id) { $(id).classList.remove('active'); }
 
 function renderLevelGrid() {
   const grid = $('level-grid');
@@ -77,6 +80,15 @@ function bindEvents() {
   $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); switchBaseScreen('screen-settings'); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
+
+  $('btn-pause').addEventListener('click', () => { GameState.isPaused = true; showOverlay('screen-pause'); });
+  $('btn-resume').addEventListener('click', () => { GameState.isPaused = false; hideOverlay('screen-pause'); });
+  $('btn-restart-from-pause').addEventListener('click', () => { GameState.isPaused = false; hideOverlay('screen-pause'); startLevel(GameState.currentLevelIndex); });
+  $('btn-menu-from-pause').addEventListener('click', () => { GameState.isPaused = false; hideOverlay('screen-pause'); switchBaseScreen('screen-menu'); });
+  $('btn-retry').addEventListener('click', () => { hideOverlay('screen-game-over'); startLevel(GameState.currentLevelIndex); });
+  $('btn-menu-from-gameover').addEventListener('click', () => { hideOverlay('screen-game-over'); switchBaseScreen('screen-menu'); });
+  $('btn-next-level').addEventListener('click', () => { hideOverlay('screen-level-complete'); startLevel(Math.min(GameState.currentLevelIndex + 1, LEVELS.length - 1)); });
+  $('btn-menu-from-complete').addEventListener('click', () => { hideOverlay('screen-level-complete'); switchBaseScreen('screen-menu'); });
 }
 
 function startLevel(index) {
@@ -87,6 +99,8 @@ function startLevel(index) {
   GameState.displayedRoomSize = level.initialRoomSize;
   GameState.targetRoomSize = level.initialRoomSize;
   $('hud-level').textContent = level.id;
+  const best = persisted.bestTimes[level.id];
+  $('hud-best').textContent = best !== undefined ? best.toFixed(1) + 's' : '--';
   switchBaseScreen('screen-game');
   GameState.isPlaying = true;
 
@@ -129,8 +143,9 @@ function handleLevelComplete() {
   });
   savePersisted();
 
-  alert(`Room cleared! Streak: ${GameState.combo}`);
-  switchBaseScreen('screen-menu');
+  $('complete-time').textContent = timeTaken.toFixed(1);
+  $('complete-combo').textContent = GameState.combo;
+  showOverlay('screen-level-complete');
 }
 
 function triggerWallShrink(notchIndex, level) {
@@ -147,8 +162,9 @@ function updateGameplay(dt) {
 
   if (timeRemaining <= 0) {
     GameState.isPlaying = false;
-    alert('Crushed!');
-    switchBaseScreen('screen-menu');
+    GameState.combo = 0;
+    $('game-over-time').textContent = GameState.elapsed.toFixed(1);
+    showOverlay('screen-game-over');
     return;
   }
 
@@ -193,7 +209,7 @@ function gameLoopTick(timestamp) {
   GameState.lastTimestamp = timestamp;
   dt = Math.min(dt, 0.1);
 
-  if (GameState.isPlaying) updateGameplay(dt);
+  if (GameState.isPlaying && !GameState.isPaused) updateGameplay(dt);
   GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
   positionPuzzleLayer();
   renderCanvas();
