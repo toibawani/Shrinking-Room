@@ -11,6 +11,8 @@ const GameState = {
   puzzleIndexInLevel: 0,
   combo: 0,
   isPaused: false,
+  particles: [],
+  shake: null,
   elapsed: 0,
   currentNotch: 0,
   displayedRoomSize: 520,
@@ -118,6 +120,7 @@ function mountCurrentPuzzle() {
 }
 
 function handlePuzzleSolved() {
+  spawnBurstParticles(300, 300, '#7fae72', 34);
   GameState.puzzleIndexInLevel++;
   const level = getCurrentLevelData();
   if (GameState.puzzleIndexInLevel < level.puzzles.length) {
@@ -151,6 +154,46 @@ function handleLevelComplete() {
 function triggerWallShrink(notchIndex, level) {
   const shrinkPerNotch = (level.initialRoomSize - level.crushRoomSize) / level.shrinkNotches;
   GameState.targetRoomSize = Math.max(level.crushRoomSize, level.initialRoomSize - shrinkPerNotch * notchIndex);
+  shakeScreen(300, 8);
+}
+
+function shakeScreen(duration, intensity) {
+  GameState.shake = { duration, intensity, elapsed: 0, active: true };
+}
+function updateShakeState(dt) {
+  const el = $('game-canvas');
+  const s = GameState.shake;
+  if (!s || !s.active) { el.style.transform = ''; return; }
+  s.elapsed += dt * 1000;
+  if (s.elapsed >= s.duration) { s.active = false; el.style.transform = ''; return; }
+  const p = 1 - s.elapsed / s.duration;
+  const dx = (Math.random() * 2 - 1) * s.intensity * p;
+  const dy = (Math.random() * 2 - 1) * s.intensity * p;
+  el.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+}
+
+function spawnBurstParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 80 + Math.random() * 220;
+    GameState.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 0.5 + Math.random() * 0.4, age: 0, size: 2 + Math.random() * 3, color });
+  }
+}
+function updateParticles(dt) {
+  GameState.particles.forEach(p => { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; });
+  GameState.particles = GameState.particles.filter(p => p.age < p.life);
+}
+function drawParticles(ctx) {
+  GameState.particles.forEach(p => {
+    const t = 1 - p.age / p.life;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, t);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
 }
 
 function updateGameplay(dt) {
@@ -201,6 +244,7 @@ function renderCanvas() {
   ctx.strokeStyle = '#ff7a1a';
   ctx.lineWidth = 3;
   ctx.strokeRect(inset, inset, size, size);
+  drawParticles(ctx);
 }
 
 function gameLoopTick(timestamp) {
@@ -211,6 +255,8 @@ function gameLoopTick(timestamp) {
 
   if (GameState.isPlaying && !GameState.isPaused) updateGameplay(dt);
   GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+  updateParticles(dt);
+  updateShakeState(dt);
   positionPuzzleLayer();
   renderCanvas();
 
