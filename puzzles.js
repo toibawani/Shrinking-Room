@@ -21,6 +21,7 @@ function prMakeEl(tag, className) {
 const PUZZLE_HINTS = {
   patternCompletion: 'Pick the tile that continues the pattern.',
   hiddenKey: 'One of these is not quite like the others.',
+  symbolMemory: 'Watch the sequence, then repeat it in order.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -138,7 +139,81 @@ const HiddenKey = {
   },
 };
 
-const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey };
+/* ---- Symbol Memory ---- */
+const SYMBOL_POOL = ['◆', '●', '▲', '■', '★', '✦', '⬟', '⬢', '✚', '◈'];
+
+const SymbolMemory = {
+  generate(params) {
+    const slots = params.slots || 5;
+    const sequenceLength = Math.min(params.sequenceLength || 3, slots);
+    const symbols = prShuffle(SYMBOL_POOL).slice(0, slots);
+    const sequence = prShuffle([...Array(slots).keys()]).slice(0, sequenceLength);
+    return { slots, symbols, sequence, showTime: params.showTime || 600, gapTime: params.gapTime || 250, playerProgress: [], phase: 'idle', wrongAttempts: 0 };
+  },
+  mount(state, container, onSolved) {
+    container.innerHTML = '';
+    const wrap = prMakeEl('div', 'sm-wrap');
+    const grid = prMakeEl('div', 'sm-grid');
+    wrap.appendChild(grid);
+    container.appendChild(wrap);
+
+    const nodeEls = state.symbols.map((sym, i) => {
+      const node = prMakeEl('button', 'sm-node');
+      node.type = 'button';
+      node.textContent = sym;
+      node.dataset.index = i;
+      grid.appendChild(node);
+      return node;
+    });
+
+    let destroyed = false;
+    const timeouts = [];
+    function after(ms, fn) { const t = setTimeout(() => { if (!destroyed) fn(); }, ms); timeouts.push(t); return t; }
+    function setInputEnabled(enabled) { nodeEls.forEach(n => { n.disabled = !enabled; }); }
+
+    function playSequence() {
+      setInputEnabled(false);
+      state.phase = 'showing';
+      let t = 200;
+      state.sequence.forEach((slotIndex) => {
+        after(t, () => nodeEls[slotIndex].classList.add('flash'));
+        after(t + state.showTime, () => nodeEls[slotIndex].classList.remove('flash'));
+        t += state.showTime + state.gapTime;
+      });
+      after(t + 150, () => { state.phase = 'input'; setInputEnabled(true); });
+    }
+
+    nodeEls.forEach((node) => {
+      node.addEventListener('click', () => {
+        if (state.phase !== 'input') return;
+        const idx = Number(node.dataset.index);
+        const expected = state.sequence[state.playerProgress.length];
+        if (idx === expected) {
+          node.classList.add('correct');
+          after(220, () => node.classList.remove('correct'));
+          state.playerProgress.push(idx);
+          if (state.playerProgress.length === state.sequence.length) {
+            state.phase = 'solved';
+            setInputEnabled(false);
+            nodeEls.forEach(n => n.classList.add('solved'));
+            after(280, onSolved);
+          }
+        } else {
+          node.classList.add('wrong');
+          after(260, () => node.classList.remove('wrong'));
+          state.playerProgress = [];
+          state.wrongAttempts++;
+          if (state.wrongAttempts % 2 === 0) after(200, playSequence);
+        }
+      });
+    });
+
+    playSequence();
+    return function destroy() { destroyed = true; timeouts.forEach(clearTimeout); };
+  },
+};
+
+const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey, symbolMemory: SymbolMemory };
 
 const Puzzles = {
   create(type, params, container, onSolved) {
