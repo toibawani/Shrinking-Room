@@ -4,6 +4,12 @@
 
 const STORAGE_KEY = 'shrinkingRoomState_v1';
 const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
+const TUTORIAL_STEPS = [
+  { title: 'The room is shrinking.', body: 'The walls close in on a timer. Solve the puzzle inside before they reach you.' },
+  { title: 'Every room, a new puzzle.', body: 'Memory, locks, hidden objects, patterns, wires, weights. Check the line below the room if you need a nudge.' },
+  { title: 'Speed builds your streak.', body: 'Clear a room with time to spare and your streak grows. Streaks unlock new room themes.' },
+  { title: 'Esc pauses. Retry is instant.', body: 'No loading screens. If the walls get you, you are back in within a second.' },
+];
 
 const GameState = {
   baseScreen: 'screen-landing',
@@ -11,6 +17,7 @@ const GameState = {
   puzzleIndexInLevel: 0,
   combo: 0,
   isPaused: false,
+  tutorialStep: 0,
   particles: [],
   shake: null,
   elapsed: 0,
@@ -24,7 +31,7 @@ const GameState = {
 
 function $(id) { return document.getElementById(id); }
 
-function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', stats: { roomsCleared: 0, bestStreak: 0 } }; }
+function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, stats: { roomsCleared: 0, bestStreak: 0 } }; }
 function loadPersisted() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -97,10 +104,15 @@ function bindEvents() {
     if (!name) { $('input-callsign').focus(); return; }
     persisted.profile = { name, createdAt: Date.now() };
     savePersisted();
-    switchBaseScreen('screen-menu');
+    openTutorial();
   });
+  $('btn-how-to-play').addEventListener('click', () => openTutorial());
+  $('btn-tutorial-next').addEventListener('click', () => advanceTutorial());
+  $('btn-skip-tutorial').addEventListener('click', () => closeTutorial());
   $('input-callsign').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-create-profile').click(); });
-  $('btn-continue-profile').addEventListener('click', () => switchBaseScreen('screen-menu'));
+  $('btn-continue-profile').addEventListener('click', () => {
+    if (!persisted.hasSeenTutorial) openTutorial(); else switchBaseScreen('screen-menu');
+  });
   $('btn-switch-profile').addEventListener('click', () => switchProfile());
   $('btn-switch-profile-settings').addEventListener('click', () => { switchProfile(); switchBaseScreen('screen-landing'); });
 }
@@ -292,6 +304,37 @@ function renderLanding() {
   }
 }
 function switchProfile() { persisted.profile = null; savePersisted(); renderLanding(); }
+
+function openTutorial() {
+  GameState.tutorialStep = 0;
+  renderTutorialStep();
+  showOverlay('screen-tutorial');
+}
+function renderTutorialStep() {
+  const step = TUTORIAL_STEPS[GameState.tutorialStep];
+  const isLast = GameState.tutorialStep === TUTORIAL_STEPS.length - 1;
+  $('tutorial-step-label').textContent = `Step ${GameState.tutorialStep + 1} of ${TUTORIAL_STEPS.length}`;
+  $('tutorial-title').textContent = step.title;
+  $('tutorial-body').textContent = step.body;
+  $('btn-tutorial-next').textContent = isLast ? "Let's Go" : 'Next';
+  const dots = $('tutorial-dots');
+  dots.innerHTML = '';
+  TUTORIAL_STEPS.forEach((_, i) => {
+    const dot = document.createElement('span');
+    if (i === GameState.tutorialStep) dot.classList.add('on');
+    dots.appendChild(dot);
+  });
+}
+function advanceTutorial() {
+  if (GameState.tutorialStep < TUTORIAL_STEPS.length - 1) { GameState.tutorialStep++; renderTutorialStep(); }
+  else closeTutorial();
+}
+function closeTutorial() {
+  hideOverlay('screen-tutorial');
+  persisted.hasSeenTutorial = true;
+  savePersisted();
+  switchBaseScreen('screen-menu');
+}
 
 function initGame() {
   persisted = loadPersisted();

@@ -151,3 +151,12 @@ body[data-theme="emerald"] { --accent: #7fae72; }
 .terminal-stats { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; }
 .game-title.small { font-size: 1.8rem; margin: 4px 0 2px; }
 .btn-text { background: none; border: none; color: var(--text-dim); font-size: 0.85rem; text-decoration: underline; padding: 8px; cursor: pointer; }
+
+/* ---------------- Tutorial ---------------- */
+.tutorial-card { position: relative; padding-top: 30px; }
+.tutorial-skip { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 0.78rem; cursor: pointer; }
+.tutorial-step-label { font-size: 0.68rem; color: var(--accent); letter-spacing: 1.5px; margin-bottom: 4px; text-transform: uppercase; }
+.tutorial-body { color: var(--text-dim); font-size: 0.92rem; line-height: 1.55; margin: 6px 0 4px; }
+.tutorial-dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 4px; }
+.tutorial-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--steel-border); }
+.tutorial-dots span.on { background: var(--accent); }
