@@ -6,7 +6,7 @@ const STORAGE_KEY = 'shrinkingRoomState_v1';
 const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
 
 const GameState = {
-  baseScreen: 'screen-menu',
+  baseScreen: 'screen-landing',
   currentLevelIndex: 0,
   puzzleIndexInLevel: 0,
   combo: 0,
@@ -24,7 +24,7 @@ const GameState = {
 
 function $(id) { return document.getElementById(id); }
 
-function defaultPersisted() { return { bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber' }; }
+function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', stats: { roomsCleared: 0, bestStreak: 0 } }; }
 function loadPersisted() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -91,6 +91,18 @@ function bindEvents() {
   $('btn-menu-from-gameover').addEventListener('click', () => { hideOverlay('screen-game-over'); switchBaseScreen('screen-menu'); });
   $('btn-next-level').addEventListener('click', () => { hideOverlay('screen-level-complete'); startLevel(Math.min(GameState.currentLevelIndex + 1, LEVELS.length - 1)); });
   $('btn-menu-from-complete').addEventListener('click', () => { hideOverlay('screen-level-complete'); switchBaseScreen('screen-menu'); });
+
+  $('btn-create-profile').addEventListener('click', () => {
+    const name = $('input-callsign').value.trim().slice(0, 16);
+    if (!name) { $('input-callsign').focus(); return; }
+    persisted.profile = { name, createdAt: Date.now() };
+    savePersisted();
+    switchBaseScreen('screen-menu');
+  });
+  $('input-callsign').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-create-profile').click(); });
+  $('btn-continue-profile').addEventListener('click', () => switchBaseScreen('screen-menu'));
+  $('btn-switch-profile').addEventListener('click', () => switchProfile());
+  $('btn-switch-profile-settings').addEventListener('click', () => { switchProfile(); switchBaseScreen('screen-landing'); });
 }
 
 function startLevel(index) {
@@ -138,6 +150,8 @@ function handleLevelComplete() {
   if (prevBest === undefined || timeTaken < prevBest) persisted.bestTimes[level.id] = timeTaken;
 
   if (timeTaken <= level.timeLimit * 0.6) GameState.combo++; else GameState.combo = 0;
+  persisted.stats.roomsCleared++;
+  persisted.stats.bestStreak = Math.max(persisted.stats.bestStreak, GameState.combo);
 
   Object.keys(THEME_UNLOCK_COMBOS).forEach(theme => {
     if (GameState.combo >= THEME_UNLOCK_COMBOS[theme] && !persisted.unlockedThemes.includes(theme)) {
@@ -263,10 +277,27 @@ function gameLoopTick(timestamp) {
   requestAnimationFrame(gameLoopTick);
 }
 
+function renderLanding() {
+  const hasProfile = !!(persisted.profile && persisted.profile.name);
+  $('panel-create').style.display = hasProfile ? 'none' : 'flex';
+  $('panel-welcome').style.display = hasProfile ? 'flex' : 'none';
+  if (hasProfile) {
+    const name = persisted.profile.name;
+    $('welcome-name').textContent = name;
+    $('welcome-badge').textContent = name.charAt(0).toUpperCase();
+    $('welcome-stats').textContent = `${persisted.stats.roomsCleared} rooms cleared · best streak ${persisted.stats.bestStreak}`;
+    $('menu-player-tag').textContent = name.toUpperCase();
+  } else {
+    $('input-callsign').value = '';
+  }
+}
+function switchProfile() { persisted.profile = null; savePersisted(); renderLanding(); }
+
 function initGame() {
   persisted = loadPersisted();
   document.body.dataset.theme = persisted.currentTheme;
   renderLevelGrid();
+  renderLanding();
   bindEvents();
   requestAnimationFrame(gameLoopTick);
 }

@@ -6,12 +6,36 @@
 <title>Shrinking Room</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-theme="amber">
 
 <div id="app">
 
+  <!-- LANDING / ACCESS TERMINAL (first screen every session) -->
+  <section id="screen-landing" class="screen active">
+    <div class="terminal-card">
+      <p class="terminal-eyebrow">ACCESS TERMINAL</p>
+      <h1 class="game-title small">SHRINKING<span>ROOM</span></h1>
+
+      <div class="terminal-panel" id="panel-create">
+        <label class="terminal-label" for="input-callsign">Enter a callsign</label>
+        <input class="terminal-input" id="input-callsign" type="text" maxlength="16" placeholder="e.g. VOSS" autocomplete="off">
+        <button class="btn btn-primary" id="btn-create-profile" type="button">Enter</button>
+        <p class="terminal-note">Saved on this device only — no server, no password.</p>
+      </div>
+
+      <div class="terminal-panel" id="panel-welcome" style="display:none;">
+        <div class="terminal-badge" id="welcome-badge">V</div>
+        <p class="terminal-welcome">Welcome back, <span id="welcome-name">Operator</span></p>
+        <p class="terminal-stats" id="welcome-stats">0 rooms cleared</p>
+        <button class="btn btn-primary" id="btn-continue-profile" type="button">Continue</button>
+        <button class="btn btn-text" id="btn-switch-profile" type="button">Not you? Switch profile</button>
+      </div>
+    </div>
+  </section>
+
   <!-- MAIN MENU -->
-  <section id="screen-menu" class="screen active">
+  <section id="screen-menu" class="screen">
+    <p class="terminal-eyebrow" id="menu-player-tag">OPERATOR</p>
     <h1 class="game-title">SHRINKING<span>ROOM</span></h1>
     <p class="game-tagline">The walls are not patient.</p>
     <div class="menu-buttons">
@@ -31,6 +55,10 @@
   <!-- SETTINGS -->
   <section id="screen-settings" class="screen">
     <h2 class="screen-heading">Settings</h2>
+    <div class="settings-block">
+      <h3>Operator</h3>
+      <button class="btn btn-secondary" id="btn-switch-profile-settings" type="button">Switch profile</button>
+    </div>
     <div class="settings-block">
       <h3>Room Theme <span class="settings-hint">(unlocked by streaks)</span></h3>
       <div class="theme-swatches" id="theme-swatches"></div>

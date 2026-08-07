@@ -136,3 +136,18 @@ body[data-theme="emerald"] { --accent: #7fae72; }
 .overlay-danger h2 { color: #d1453f; }
 .overlay-success h2 { color: #7fae72; }
 .hud-pause { width: 38px; height: 38px; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk); cursor: pointer; }
+
+/* ---------------- Landing / Access Terminal ---------------- */
+#screen-landing { padding-top: 8vh; min-height: 60vh; justify-content: center; }
+.terminal-card { width: min(380px, 92vw); background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md); padding: 30px 26px 26px; }
+.terminal-eyebrow { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 6px; }
+.terminal-panel { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.terminal-label { text-align: left; font-size: 0.78rem; color: var(--text-dim); }
+.terminal-input { font-size: 1rem; background: var(--bg-concrete); border: 1px solid var(--steel-border); border-radius: 4px; color: var(--text-chalk); padding: 12px 14px; }
+.terminal-note { text-align: left; font-size: 0.72rem; color: var(--text-dim); }
+.terminal-badge { width: 56px; height: 56px; border-radius: 50%; margin: 4px auto 2px; background: var(--accent); color: #1a1200; font-size: 1.7rem; display: flex; align-items: center; justify-content: center; }
+.terminal-welcome { font-size: 1.5rem; margin-top: 6px; }
+.terminal-welcome span { color: var(--accent); }
+.terminal-stats { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; }
+.game-title.small { font-size: 1.8rem; margin: 4px 0 2px; }
+.btn-text { background: none; border: none; color: var(--text-dim); font-size: 0.85rem; text-decoration: underline; padding: 8px; cursor: pointer; }
