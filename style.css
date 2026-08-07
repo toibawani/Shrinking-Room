@@ -67,3 +67,10 @@ body {
 .shape-square { border-radius: 4px; }
 .shape-diamond { border-radius: 4px; transform: rotate(45deg); }
 .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 17px solid transparent; border-right: 17px solid transparent; border-bottom: 30px solid var(--tri-color, var(--accent)); }
+
+/* ---------------- Hidden Key Search puzzle ---------------- */
+.hk-grid { width: 92%; height: 92%; display: grid; grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)); gap: 3%; align-content: center; }
+.hk-item { background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; aspect-ratio: 1; }
+.hk-orb { width: 70%; height: 70%; border-radius: 30%; background: linear-gradient(150deg, #3a3226, #6b5a3a); }
+.hk-item.wrong-flash .hk-orb { filter: brightness(0.7); }
+.hk-item.found .hk-orb { background: linear-gradient(150deg, #7fae72, #3d6b34); }

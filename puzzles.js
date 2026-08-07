@@ -20,6 +20,7 @@ function prMakeEl(tag, className) {
 
 const PUZZLE_HINTS = {
   patternCompletion: 'Pick the tile that continues the pattern.',
+  hiddenKey: 'One of these is not quite like the others.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -96,7 +97,48 @@ const PatternCompletion = {
   },
 };
 
-const PUZZLE_MODULES = { patternCompletion: PatternCompletion };
+/* ---- Hidden Key Search ---- */
+const HiddenKey = {
+  generate(params) {
+    const decoys = params.decoys || 5;
+    const difficulty = Math.max(0.1, Math.min(0.9, params.difficulty !== undefined ? params.difficulty : 0.4));
+    const total = decoys + 1;
+    const keyIndex = prRandomInt(0, total - 1);
+    const modes = ['tone', 'shadow', 'glow'];
+    const mode = modes[prRandomInt(0, modes.length - 1)];
+    const magnitude = 1 - difficulty;
+    return { total, keyIndex, mode, magnitude };
+  },
+  mount(state, container, onSolved) {
+    container.innerHTML = '';
+    const grid = prMakeEl('div', 'hk-grid');
+    container.appendChild(grid);
+    for (let i = 0; i < state.total; i++) {
+      const item = prMakeEl('button', 'hk-item');
+      item.type = 'button';
+      const orb = prMakeEl('div', 'hk-orb');
+      item.appendChild(orb);
+      if (i === state.keyIndex) {
+        if (state.mode === 'tone') {
+          orb.style.filter = `brightness(${1 + (6 + state.magnitude * 26) / 100})`;
+        } else if (state.mode === 'shadow') {
+          const dist = 3 + state.magnitude * 10;
+          orb.style.boxShadow = `${-dist}px ${dist}px 10px rgba(0,0,0,0.55)`;
+        } else {
+          orb.style.boxShadow = `0 0 ${10 + state.magnitude * 16}px rgba(255,255,255,${0.08 + state.magnitude * 0.3})`;
+        }
+      }
+      item.addEventListener('click', () => {
+        if (i === state.keyIndex) { item.classList.add('found'); setTimeout(onSolved, 260); }
+        else { item.classList.add('wrong-flash'); setTimeout(() => item.classList.remove('wrong-flash'), 300); }
+      });
+      grid.appendChild(item);
+    }
+    return function destroy() {};
+  },
+};
+
+const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey };
 
 const Puzzles = {
   create(type, params, container, onSolved) {
