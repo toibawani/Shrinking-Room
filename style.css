@@ -1,11 +1,43 @@
+:root {
+  --bg-concrete: #16140f;
+  --bg-panel: #201d16;
+  --steel-border: #3a352a;
+  --text-chalk: #ece7d8;
+  --text-dim: #9c9484;
+  --accent: #ff7a1a;
+  --radius-md: 8px;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {
   min-height: 100vh;
-  background: #16140f;
-  color: #ece7d8;
+  background: var(--bg-concrete);
+  color: var(--text-chalk);
   font-family: sans-serif;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
+#app { width: 100%; max-width: 720px; padding: 28px 20px 40px; }
+
+.screen { display: none; flex-direction: column; align-items: center; text-align: center; }
+.screen.active { display: flex; }
+
+.game-title { font-size: 2.4rem; font-weight: 700; }
+.game-title span { display: block; color: var(--accent); }
+.game-tagline { color: var(--text-dim); margin: 12px 0 32px; }
+
+.btn { font-size: 1rem; padding: 14px 28px; border-radius: var(--radius-md); border: 1px solid transparent; cursor: pointer; background: transparent; color: var(--text-chalk); }
+.btn-primary { background: var(--accent); color: #1a1200; font-weight: 700; }
+.btn-secondary { border-color: var(--steel-border); background: var(--bg-panel); }
+
+.menu-buttons { display: flex; flex-direction: column; gap: 12px; width: min(320px, 82vw); }
+
+.screen-heading { font-size: 1.8rem; margin: 20px 0 24px; }
+.settings-hint { color: var(--text-dim); margin-bottom: 20px; }
+
+.level-grid { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 26px; }
+.level-card { background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md); padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; color: var(--text-chalk); }
+.level-num { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+.level-name { font-size: 0.84rem; }

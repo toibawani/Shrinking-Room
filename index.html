@@ -7,8 +7,37 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
-    <p>Shrinking Room — under construction.</p>
-  </div>
+
+<div id="app">
+
+  <!-- MAIN MENU -->
+  <section id="screen-menu" class="screen active">
+    <h1 class="game-title">SHRINKING<span>ROOM</span></h1>
+    <p class="game-tagline">The walls are not patient.</p>
+    <div class="menu-buttons">
+      <button class="btn btn-primary" id="btn-play">Play</button>
+      <button class="btn btn-secondary" id="btn-level-select">Level Select</button>
+      <button class="btn btn-secondary" id="btn-settings">Settings</button>
+    </div>
+  </section>
+
+  <!-- LEVEL SELECT -->
+  <section id="screen-level-select" class="screen">
+    <h2 class="screen-heading">Select a Room</h2>
+    <div class="level-grid" id="level-grid"></div>
+    <button class="btn btn-secondary" id="btn-back-from-levels">Back</button>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="screen-settings" class="screen">
+    <h2 class="screen-heading">Settings</h2>
+    <p class="settings-hint">Difficulty and themes coming soon.</p>
+    <button class="btn btn-secondary" id="btn-back-from-settings">Back</button>
+  </section>
+
+</div>
+
+<script src="levels.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
