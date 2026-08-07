@@ -55,11 +55,14 @@ function startLevel(index) {
   switchBaseScreen('screen-game');
   GameState.isPlaying = true;
 
-  // Temporary stub puzzle: click the room to "solve" it. Replaced by real
-  // puzzle types in the next few commits.
   const layer = $('puzzle-layer');
-  layer.innerHTML = '<button id="stub-solve-btn">Click to solve (stub)</button>';
-  $('stub-solve-btn').addEventListener('click', () => { GameState.isPlaying = false; alert('Room cleared (stub)'); });
+  const puzzleConfig = level.puzzles[0];
+  Puzzles.create(puzzleConfig.type, puzzleConfig.params, layer, () => {
+    GameState.isPlaying = false;
+    alert('Room cleared!');
+    switchBaseScreen('screen-menu');
+  });
+  $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type);
 }
 
 function triggerWallShrink(notchIndex, level) {

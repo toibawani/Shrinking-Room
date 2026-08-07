@@ -53,3 +53,17 @@ body {
 #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: var(--radius-md); }
 #puzzle-layer { position: absolute; display: flex; align-items: center; justify-content: center; }
 .stage-hint { margin-top: 16px; color: var(--text-dim); font-size: 0.85rem; }
+
+/* ---------------- Pattern Completion puzzle ---------------- */
+.pc-wrap { flex-direction: column; gap: 6%; display: flex; align-items: center; }
+.pc-row, .pc-options { display: flex; gap: 4%; justify-content: center; flex-wrap: wrap; }
+.pc-tile { width: min(15%, 60px); aspect-ratio: 1; background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+.pc-tile.blank { border-style: dashed; }
+.pc-tile.option { cursor: pointer; }
+.pc-tile.correct-flash { border-color: #7fae72; }
+.pc-tile.wrong-flash { border-color: #d1453f; }
+.pc-shape { width: 55%; height: 55%; }
+.shape-circle { border-radius: 50%; }
+.shape-square { border-radius: 4px; }
+.shape-diamond { border-radius: 4px; transform: rotate(45deg); }
+.shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 17px solid transparent; border-right: 17px solid transparent; border-bottom: 30px solid var(--tri-color, var(--accent)); }
