@@ -24,6 +24,7 @@ const PUZZLE_HINTS = {
   symbolMemory: 'Watch the sequence, then repeat it in order.',
   rotatingLock: 'Rotate each dial until it lines up with its mark.',
   wireConnect: 'Connect matching colors without crossing paths.',
+  weightBalance: 'Select objects that add up to the exact target.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -377,7 +378,72 @@ const WireConnect = {
   },
 };
 
-const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey, symbolMemory: SymbolMemory, rotatingLock: RotatingLock, wireConnect: WireConnect };
+/* ---- Weight Balance ---- */
+const WeightBalance = {
+  generate(params) {
+    const objectCount = params.objectCount || 5;
+    const maxValue = params.maxValue || 9;
+    const solutionSize = prRandomInt(2, Math.min(4, Math.max(2, objectCount - 1)));
+    const values = [];
+    for (let i = 0; i < objectCount; i++) values.push(prRandomInt(1, maxValue));
+    const solutionIndices = prShuffle([...Array(objectCount).keys()]).slice(0, solutionSize);
+    const target = solutionIndices.reduce((sum, i) => sum + values[i], 0);
+    const objects = values.map((v, i) => ({ id: i, value: v }));
+    return { objects: prShuffle(objects), target, selected: new Set() };
+  },
+  mount(state, container, onSolved) {
+    container.innerHTML = '';
+    const wrap = prMakeEl('div', 'wb-wrap');
+    const targetLine = prMakeEl('div', 'wb-target');
+    targetLine.innerHTML = `Target: <span>${state.target}</span>`;
+    wrap.appendChild(targetLine);
+    const totalLine = prMakeEl('div', 'wb-total');
+    wrap.appendChild(totalLine);
+    const objectsWrap = prMakeEl('div', 'wb-objects');
+    wrap.appendChild(objectsWrap);
+    container.appendChild(wrap);
+
+    function currentTotal() {
+      let sum = 0;
+      state.selected.forEach(id => { sum += state.objects.find(o => o.id === id).value; });
+      return sum;
+    }
+    function renderTotal() {
+      const total = currentTotal();
+      totalLine.textContent = `On the scale: ${total}`;
+      totalLine.classList.remove('match', 'over');
+      if (total === state.target) totalLine.classList.add('match');
+      else if (total > state.target) totalLine.classList.add('over');
+    }
+    state.objects.forEach(obj => {
+      const chip = prMakeEl('button', 'wb-chip');
+      chip.type = 'button';
+      chip.textContent = obj.value;
+      chip.addEventListener('click', () => {
+        if (state.selected.has(obj.id)) state.selected.delete(obj.id);
+        else state.selected.add(obj.id);
+        chip.classList.toggle('selected');
+        renderTotal();
+        if (currentTotal() === state.target) {
+          objectsWrap.querySelectorAll('.wb-chip').forEach(c => { c.disabled = true; });
+          setTimeout(onSolved, 320);
+        }
+      });
+      objectsWrap.appendChild(chip);
+    });
+    renderTotal();
+    return function destroy() {};
+  },
+};
+
+const PUZZLE_MODULES = {
+  patternCompletion: PatternCompletion,
+  hiddenKey: HiddenKey,
+  symbolMemory: SymbolMemory,
+  rotatingLock: RotatingLock,
+  wireConnect: WireConnect,
+  weightBalance: WeightBalance,
+};
 
 const Puzzles = {
   create(type, params, container, onSolved) {
