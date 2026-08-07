@@ -160,3 +160,7 @@ body[data-theme="emerald"] { --accent: #7fae72; }
 .tutorial-dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 4px; }
 .tutorial-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--steel-border); }
 .tutorial-dots span.on { background: var(--accent); }
+
+/* ---------------- Sound toggle ---------------- */
+.menu-sound { position: absolute; top: 0; right: 0; }
+#screen-menu { position: relative; }

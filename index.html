@@ -55,6 +55,7 @@
       <button class="btn btn-secondary" id="btn-level-select">Level Select</button>
       <button class="btn btn-secondary" id="btn-how-to-play">How to Play</button>
       <button class="btn btn-secondary" id="btn-settings">Settings</button>
+      <button class="hud-pause menu-sound" id="btn-sound-toggle" type="button">🔊</button>
     </div>
   </section>
 
@@ -68,6 +69,13 @@
   <!-- SETTINGS -->
   <section id="screen-settings" class="screen">
     <h2 class="screen-heading">Settings</h2>
+    <div class="settings-block">
+      <h3>Sound</h3>
+      <div class="difficulty-toggle" id="sound-toggle">
+        <button class="diff-btn" data-sound="on" type="button">On</button>
+        <button class="diff-btn" data-sound="off" type="button">Off</button>
+      </div>
+    </div>
     <div class="settings-block">
       <h3>Operator</h3>
       <button class="btn btn-secondary" id="btn-switch-profile-settings" type="button">Switch profile</button>
@@ -129,6 +137,7 @@
 
 </div>
 
+<script src="audio.js"></script>
 <script src="levels.js"></script>
 <script src="puzzles.js"></script>
 <script src="game.js"></script>

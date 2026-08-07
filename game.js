@@ -31,7 +31,7 @@ const GameState = {
 
 function $(id) { return document.getElementById(id); }
 
-function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, stats: { roomsCleared: 0, bestStreak: 0 } }; }
+function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, stats: { roomsCleared: 0, bestStreak: 0 } }; }
 function loadPersisted() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -99,7 +99,9 @@ function bindEvents() {
   $('btn-next-level').addEventListener('click', () => { hideOverlay('screen-level-complete'); startLevel(Math.min(GameState.currentLevelIndex + 1, LEVELS.length - 1)); });
   $('btn-menu-from-complete').addEventListener('click', () => { hideOverlay('screen-level-complete'); switchBaseScreen('screen-menu'); });
 
+  SFX.unlock();
   $('btn-create-profile').addEventListener('click', () => {
+    SFX.unlock();
     const name = $('input-callsign').value.trim().slice(0, 16);
     if (!name) { $('input-callsign').focus(); return; }
     persisted.profile = { name, createdAt: Date.now() };
@@ -109,6 +111,10 @@ function bindEvents() {
   $('btn-how-to-play').addEventListener('click', () => openTutorial());
   $('btn-tutorial-next').addEventListener('click', () => advanceTutorial());
   $('btn-skip-tutorial').addEventListener('click', () => closeTutorial());
+  $('btn-sound-toggle').addEventListener('click', () => setSound(!persisted.soundOn));
+  document.querySelectorAll('.diff-btn[data-sound]').forEach(btn => {
+    btn.addEventListener('click', () => setSound(btn.dataset.sound === 'on'));
+  });
   $('input-callsign').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-create-profile').click(); });
   $('btn-continue-profile').addEventListener('click', () => {
     if (!persisted.hasSeenTutorial) openTutorial(); else switchBaseScreen('screen-menu');
@@ -144,6 +150,7 @@ function mountCurrentPuzzle() {
 }
 
 function handlePuzzleSolved() {
+  SFX.solved();
   spawnBurstParticles(300, 300, '#7fae72', 34);
   GameState.puzzleIndexInLevel++;
   const level = getCurrentLevelData();
@@ -156,6 +163,7 @@ function handlePuzzleSolved() {
 
 function handleLevelComplete() {
   GameState.isPlaying = false;
+  SFX.levelComplete();
   const level = getCurrentLevelData();
   const timeTaken = GameState.elapsed;
   const prevBest = persisted.bestTimes[level.id];
@@ -180,6 +188,7 @@ function handleLevelComplete() {
 function triggerWallShrink(notchIndex, level) {
   const shrinkPerNotch = (level.initialRoomSize - level.crushRoomSize) / level.shrinkNotches;
   GameState.targetRoomSize = Math.max(level.crushRoomSize, level.initialRoomSize - shrinkPerNotch * notchIndex);
+  SFX.shrink();
   shakeScreen(300, 8);
 }
 
@@ -232,6 +241,7 @@ function updateGameplay(dt) {
   if (timeRemaining <= 0) {
     GameState.isPlaying = false;
     GameState.combo = 0;
+    SFX.gameOver();
     $('game-over-time').textContent = GameState.elapsed.toFixed(1);
     showOverlay('screen-game-over');
     return;
@@ -336,11 +346,26 @@ function closeTutorial() {
   switchBaseScreen('screen-menu');
 }
 
+function syncSoundButtons() {
+  document.querySelectorAll('.diff-btn[data-sound]').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.sound === 'on') === persisted.soundOn);
+  });
+  $('btn-sound-toggle').textContent = persisted.soundOn ? '🔊' : '🔇';
+}
+function setSound(on) {
+  persisted.soundOn = on;
+  SFX.setMuted(!on);
+  savePersisted();
+  syncSoundButtons();
+}
+
 function initGame() {
   persisted = loadPersisted();
   document.body.dataset.theme = persisted.currentTheme;
+  SFX.setMuted(!persisted.soundOn);
   renderLevelGrid();
   renderLanding();
+  syncSoundButtons();
   bindEvents();
   requestAnimationFrame(gameLoopTick);
 }

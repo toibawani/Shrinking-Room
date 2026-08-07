@@ -76,9 +76,11 @@ const PatternCompletion = {
       const tile = makeTile(opt, true);
       tile.addEventListener('click', () => {
         if (opt.shape === state.answer.shape && opt.color === state.answer.color) {
+          SFX.correct();
           tile.classList.add('correct-flash');
           setTimeout(onSolved, 260);
         } else {
+          SFX.wrong();
           tile.classList.add('wrong-flash');
           setTimeout(() => tile.classList.remove('wrong-flash'), 300);
         }
@@ -133,8 +135,8 @@ const HiddenKey = {
         }
       }
       item.addEventListener('click', () => {
-        if (i === state.keyIndex) { item.classList.add('found'); setTimeout(onSolved, 260); }
-        else { item.classList.add('wrong-flash'); setTimeout(() => item.classList.remove('wrong-flash'), 300); }
+        if (i === state.keyIndex) { SFX.correct(); item.classList.add('found'); setTimeout(onSolved, 260); }
+        else { SFX.wrong(); item.classList.add('wrong-flash'); setTimeout(() => item.classList.remove('wrong-flash'), 300); }
       });
       grid.appendChild(item);
     }
@@ -192,6 +194,7 @@ const SymbolMemory = {
         const idx = Number(node.dataset.index);
         const expected = state.sequence[state.playerProgress.length];
         if (idx === expected) {
+          SFX.correct();
           node.classList.add('correct');
           after(220, () => node.classList.remove('correct'));
           state.playerProgress.push(idx);
@@ -202,6 +205,7 @@ const SymbolMemory = {
             after(280, onSolved);
           }
         } else {
+          SFX.wrong();
           node.classList.add('wrong');
           after(260, () => node.classList.remove('wrong'));
           state.playerProgress = [];
@@ -267,6 +271,7 @@ const RotatingLock = {
     }
 
     function rotateDial(i) {
+      SFX.click();
       state.current[i] = (state.current[i] + 1) % state.segments;
       pointerEls[i].style.transform = `rotate(${state.current[i] * angleStep}deg)`;
       if (state.linked && i < state.dials - 1) {
@@ -386,6 +391,7 @@ const WireConnect = {
       const data = state.cells[r][c];
       if (state.activePair === null) {
         if (data && data.kind === 'endpoint' && !state.connected[data.pair]) {
+          SFX.click();
           state.activePair = data.pair;
           state.currentPath = [[r, c]];
           render();
@@ -402,8 +408,9 @@ const WireConnect = {
         render();
         return;
       }
-      if (!isAdjacent(last, [r, c])) { flashInvalid(r, c); return; }
+      if (!isAdjacent(last, [r, c])) { SFX.wrong(); flashInvalid(r, c); return; }
       if (data && data.kind === 'endpoint' && data.pair === pair) {
+        SFX.correct();
         state.currentPath.push([r, c]);
         state.connected[pair] = true;
         state.activePair = null;
@@ -413,11 +420,13 @@ const WireConnect = {
         return;
       }
       if (data === null) {
+        SFX.click();
         state.cells[r][c] = { kind: 'path', pair };
         state.currentPath.push([r, c]);
         render();
         return;
       }
+      SFX.wrong();
       flashInvalid(r, c);
     }
     render();
@@ -472,8 +481,11 @@ const WeightBalance = {
         chip.classList.toggle('selected');
         renderTotal();
         if (currentTotal() === state.target) {
+          SFX.correct();
           objectsWrap.querySelectorAll('.wb-chip').forEach(c => { c.disabled = true; });
           setTimeout(onSolved, 320);
+        } else {
+          SFX.click();
         }
       });
       objectsWrap.appendChild(chip);
