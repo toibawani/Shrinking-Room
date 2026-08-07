@@ -23,6 +23,7 @@ const PUZZLE_HINTS = {
   hiddenKey: 'One of these is not quite like the others.',
   symbolMemory: 'Watch the sequence, then repeat it in order.',
   rotatingLock: 'Rotate each dial until it lines up with its mark.',
+  wireConnect: 'Connect matching colors without crossing paths.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -277,7 +278,106 @@ const RotatingLock = {
   },
 };
 
-const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey, symbolMemory: SymbolMemory, rotatingLock: RotatingLock };
+/* ---- Wire / Pipe Connect ---- */
+const WC_PAIR_COLORS = ['#ffb454', '#4dd8ff', '#ff6b9d', '#8aff6b'];
+
+const WireConnect = {
+  generate(params) {
+    const gridSize = params.gridSize || 4;
+    const pairs = Math.min(params.pairs || 2, WC_PAIR_COLORS.length);
+    const cells = Array.from({ length: gridSize }, () => Array.from({ length: gridSize }, () => null));
+    const allCoords = [];
+    for (let r = 0; r < gridSize; r++) for (let c = 0; c < gridSize; c++) allCoords.push([r, c]);
+    const shuffled = prShuffle(allCoords);
+    const endpoints = [];
+    for (let p = 0; p < pairs; p++) {
+      const a = shuffled.pop();
+      const b = shuffled.pop();
+      cells[a[0]][a[1]] = { kind: 'endpoint', pair: p };
+      cells[b[0]][b[1]] = { kind: 'endpoint', pair: p };
+      endpoints.push([a, b]);
+    }
+    return { gridSize, pairs, cells, endpoints, connected: Array(pairs).fill(false), activePair: null, currentPath: [] };
+  },
+  mount(state, container, onSolved) {
+    container.innerHTML = '';
+    const grid = prMakeEl('div', 'wc-grid');
+    grid.style.setProperty('--wc-size', state.gridSize);
+    container.appendChild(grid);
+    const cellEls = [];
+    for (let r = 0; r < state.gridSize; r++) {
+      const rowEls = [];
+      for (let c = 0; c < state.gridSize; c++) {
+        const cell = prMakeEl('button', 'wc-cell');
+        cell.type = 'button';
+        cell.addEventListener('click', () => handleClick(r, c));
+        grid.appendChild(cell);
+        rowEls.push(cell);
+      }
+      cellEls.push(rowEls);
+    }
+
+    function render() {
+      for (let r = 0; r < state.gridSize; r++) {
+        for (let c = 0; c < state.gridSize; c++) {
+          const data = state.cells[r][c];
+          const el = cellEls[r][c];
+          el.className = 'wc-cell';
+          if (data) {
+            el.style.setProperty('--pair-color', WC_PAIR_COLORS[data.pair]);
+            el.classList.add(data.kind === 'endpoint' ? 'endpoint' : 'path');
+            if (state.connected[data.pair]) el.classList.add('connected');
+          }
+        }
+      }
+    }
+    function isAdjacent(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1; }
+    function flashInvalid(r, c) { cellEls[r][c].classList.add('invalid'); setTimeout(() => cellEls[r][c].classList.remove('invalid'), 220); }
+
+    function handleClick(r, c) {
+      const data = state.cells[r][c];
+      if (state.activePair === null) {
+        if (data && data.kind === 'endpoint' && !state.connected[data.pair]) {
+          state.activePair = data.pair;
+          state.currentPath = [[r, c]];
+          render();
+        }
+        return;
+      }
+      const pair = state.activePair;
+      const startCoord = state.currentPath[0];
+      const last = state.currentPath[state.currentPath.length - 1];
+      if (r === startCoord[0] && c === startCoord[1]) {
+        state.currentPath.slice(1).forEach(([pr, pc]) => { state.cells[pr][pc] = null; });
+        state.activePair = null;
+        state.currentPath = [];
+        render();
+        return;
+      }
+      if (!isAdjacent(last, [r, c])) { flashInvalid(r, c); return; }
+      if (data && data.kind === 'endpoint' && data.pair === pair) {
+        state.currentPath.push([r, c]);
+        state.connected[pair] = true;
+        state.activePair = null;
+        state.currentPath = [];
+        render();
+        if (state.connected.every(Boolean)) setTimeout(onSolved, 260);
+        return;
+      }
+      if (data === null) {
+        state.cells[r][c] = { kind: 'path', pair };
+        state.currentPath.push([r, c]);
+        render();
+        return;
+      }
+      flashInvalid(r, c);
+    }
+    render();
+    return function destroy() {};
+  },
+};
+
+const PUZZLE_MODULES = { patternCompletion: PatternCompletion, hiddenKey: HiddenKey, symbolMemory: SymbolMemory, rotatingLock: RotatingLock, wireConnect: WireConnect };
 
 const Puzzles = {
   create(type, params, container, onSolved) {

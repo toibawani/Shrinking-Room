@@ -91,3 +91,10 @@ body {
 .rl-mark.target { background: #7fae72; opacity: 0.55; }
 .rl-mark.pointer { background: var(--accent); transition: transform 0.32s ease; }
 .rl-dial.solved .rl-mark.pointer { background: #7fae72; }
+
+/* ---------------- Wire Connect puzzle ---------------- */
+.wc-grid { width: 92%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(var(--wc-size), 1fr); grid-template-rows: repeat(var(--wc-size), 1fr); gap: 4%; }
+.wc-cell { background: rgba(236, 231, 216, 0.04); border: 1px solid var(--steel-border); border-radius: 5px; cursor: pointer; }
+.wc-cell.endpoint { background: var(--pair-color); border-color: transparent; }
+.wc-cell.path { background: var(--pair-color); opacity: 0.55; border-color: transparent; }
+.wc-cell.invalid { background: rgba(209, 69, 63, 0.3); }
