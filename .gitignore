@@ -9,6 +9,9 @@ Thumbs.db
 # Logs
 *.log
 
-# In case tooling gets added later
+# Node
 node_modules/
-dist/
+npm-debug.log*
+
+# Local database
+data/
