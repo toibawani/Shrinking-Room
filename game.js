@@ -19,6 +19,7 @@ const GameState = {
   combo: 0,
   isPaused: false,
   tutorialStep: 0,
+  tutorialFromLanding: false,
   particles: [],
   shake: null,
   elapsed: 0,
@@ -108,9 +109,9 @@ function bindEvents() {
     if (!name) { $('input-callsign').focus(); return; }
     persisted.profile = { name, createdAt: Date.now() };
     savePersisted();
-    openTutorial();
+    openTutorial(true);
   });
-  $('btn-how-to-play').addEventListener('click', () => openTutorial());
+  $('btn-how-to-play').addEventListener('click', () => openTutorial(false));
   $('btn-tutorial-next').addEventListener('click', () => advanceTutorial());
   $('btn-skip-tutorial').addEventListener('click', () => closeTutorial());
   $('btn-sound-toggle').addEventListener('click', () => setSound(!persisted.soundOn));
@@ -127,7 +128,7 @@ function bindEvents() {
   });
   $('input-callsign').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-create-profile').click(); });
   $('btn-continue-profile').addEventListener('click', () => {
-    if (!persisted.hasSeenTutorial) openTutorial(); else switchBaseScreen('screen-menu');
+    if (!persisted.hasSeenTutorial) openTutorial(true); else switchBaseScreen('screen-menu');
   });
   $('btn-switch-profile').addEventListener('click', () => switchProfile());
   $('btn-switch-profile-settings').addEventListener('click', () => { switchProfile(); switchBaseScreen('screen-landing'); });
@@ -327,8 +328,9 @@ function renderLanding() {
 }
 function switchProfile() { persisted.profile = null; savePersisted(); renderLanding(); }
 
-function openTutorial() {
+function openTutorial(fromLanding) {
   GameState.tutorialStep = 0;
+  GameState.tutorialFromLanding = !!fromLanding;
   renderTutorialStep();
   showOverlay('screen-tutorial');
 }
@@ -353,9 +355,11 @@ function advanceTutorial() {
 }
 function closeTutorial() {
   hideOverlay('screen-tutorial');
+  const cameFromLanding = GameState.tutorialFromLanding;
   persisted.hasSeenTutorial = true;
   savePersisted();
-  switchBaseScreen('screen-menu');
+  if (cameFromLanding) startLevel(0);
+  else switchBaseScreen('screen-menu');
 }
 
 function syncDifficultyButtons() {
