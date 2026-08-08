@@ -1,171 +1,377 @@
+/* =========================================================================
+   Shrinking Room — stylesheet
+   Design direction: a bunker access-terminal / industrial hazard-panel look
+   — stenciled condensed display type, a mono "readout" face reserved for
+   numbers only, warm poured-concrete darks instead of cool near-black, and
+   glow used sparingly (earned by real danger states, not ambient decor).
+   All JS-toggled class names (.active, .locked, .critical, .warning,
+   .correct-flash, .sm-node etc.) are unchanged from the previous pass —
+   only their visual treatment changes here.
+========================================================================= */
+
 :root {
   --bg-concrete: #16140f;
   --bg-panel: #201d16;
+  --bg-panel-raised: #272219;
+  --bg-floor: #100e0a;
   --steel-border: #3a352a;
+  --steel-border-light: rgba(236, 231, 216, 0.12);
+
   --text-chalk: #ece7d8;
   --text-dim: #9c9484;
+
   --accent: #ff7a1a;
+  --accent-soft: rgba(255, 122, 26, 0.14);
+  --accent-glow: rgba(255, 122, 26, 0.55);
+
+  --safety-yellow: #e8c547;
+
+  --danger: #d1453f;
+  --danger-soft: rgba(209, 69, 63, 0.14);
+  --danger-glow: rgba(209, 69, 63, 0.6);
+
+  --success: #7fae72;
+  --success-glow: rgba(127, 174, 114, 0.5);
+
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+
   --radius-md: 8px;
+  --radius-sm: 4px;
 }
+
+/* Alternate hazard classifications, unlocked by streaks */
+body[data-theme="cyan"]    { --accent: #4fb8e0; --accent-soft: rgba(79, 184, 224, 0.14);  --accent-glow: rgba(79, 184, 224, 0.55); }
+body[data-theme="violet"]  { --accent: #a878d1; --accent-soft: rgba(168, 120, 209, 0.14); --accent-glow: rgba(168, 120, 209, 0.55); }
+body[data-theme="emerald"] { --accent: #7fae72; --accent-soft: rgba(127, 174, 114, 0.14); --accent-glow: rgba(127, 174, 114, 0.55); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
+
 body {
   min-height: 100vh;
-  background: var(--bg-concrete);
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -8%, #221e15 0%, transparent 60%),
+    var(--bg-concrete);
   color: var(--text-chalk);
-  font-family: sans-serif;
+  font-family: var(--font-body);
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  overflow-x: hidden;
 }
-#app { width: 100%; max-width: 720px; padding: 28px 20px 40px; }
 
-.screen { display: none; flex-direction: column; align-items: center; text-align: center; }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { width: 100%; max-width: 720px; padding: 28px 20px 40px; position: relative; }
+
+/* ---------------- Riveted panel utility ---------------- */
+.riveted { position: relative; }
+.riveted::before, .riveted::after,
+.riveted .rivet-tl, .riveted .rivet-tr, .riveted .rivet-bl, .riveted .rivet-br { content: ''; }
+.riveted { border: 1px solid var(--steel-border); }
+.riveted::before, .riveted::after {
+  position: absolute; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--steel-border-light);
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.6);
+}
+.riveted::before { top: 7px; left: 7px; }
+.riveted::after { top: 7px; right: 7px; }
+
+/* ---------------- Screens ---------------- */
+.screen { display: none; flex-direction: column; align-items: center; text-align: center; animation: fadeIn 0.35s ease; }
 .screen.active { display: flex; }
+.screen.overlay {
+  position: fixed; inset: 0; background: rgba(8, 7, 5, 0.86); backdrop-filter: blur(6px);
+  z-index: 50; display: none; justify-content: center; align-items: center;
+}
+.screen.overlay.active { display: flex; }
 
-.game-title { font-size: 2.4rem; font-weight: 700; }
-.game-title span { display: block; color: var(--accent); }
-.game-tagline { color: var(--text-dim); margin: 12px 0 32px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-.btn { font-size: 1rem; padding: 14px 28px; border-radius: var(--radius-md); border: 1px solid transparent; cursor: pointer; background: transparent; color: var(--text-chalk); }
-.btn-primary { background: var(--accent); color: #1a1200; font-weight: 700; }
+.screen-heading { font-family: var(--font-display); font-size: clamp(1.8rem, 6vw, 2.5rem); letter-spacing: 0.5px; margin: 20px 0 24px; }
+
+/* ---------------- Buttons ---------------- */
+.btn {
+  font-weight: 600; font-size: 0.95rem; letter-spacing: 0.3px;
+  padding: 14px 28px; border-radius: var(--radius-md);
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  background: transparent; color: var(--text-chalk);
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #1a1200; box-shadow: 0 0 0 rgba(0,0,0,0); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
+.btn-primary:hover { box-shadow: 0 6px 24px var(--accent-glow); transform: translateY(-1px); }
 .btn-secondary { border-color: var(--steel-border); background: var(--bg-panel); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-text { background: none; border: none; color: var(--text-dim); font-size: 0.85rem; text-decoration: underline; text-underline-offset: 3px; padding: 8px; }
+.btn-text:hover { color: var(--accent); }
+
+/* ---------------- Landing / Access Terminal ---------------- */
+#screen-landing { padding-top: 8vh; min-height: 60vh; justify-content: center; }
+.terminal-card {
+  width: min(380px, 92vw);
+  background: var(--bg-panel);
+  border: 1px solid var(--steel-border);
+  border-radius: var(--radius-md);
+  padding: 30px 26px 26px;
+  position: relative;
+  overflow: hidden;
+}
+.terminal-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.035;
+  background: repeating-linear-gradient(0deg, #fff 0, #fff 1px, transparent 1px, transparent 3px);
+}
+.terminal-boot { min-height: 0; }
+.terminal-boot-line {
+  font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent);
+  text-align: left; letter-spacing: 0.4px; margin-bottom: 4px;
+  animation: bootLineIn 0.3s ease both;
+}
+@keyframes bootLineIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+
+.terminal-eyebrow {
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim);
+  letter-spacing: 2px; margin-bottom: 6px;
+}
+.terminal-panel { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.terminal-label { text-align: left; font-size: 0.78rem; color: var(--text-dim); }
+.terminal-input {
+  font-family: var(--font-mono); font-size: 1rem; letter-spacing: 1px;
+  background: var(--bg-concrete); border: 1px solid var(--steel-border); border-radius: var(--radius-sm);
+  color: var(--text-chalk); padding: 12px 14px; text-transform: uppercase;
+}
+.terminal-input:focus { border-color: var(--accent); }
+.terminal-input::placeholder { color: var(--text-dim); text-transform: none; }
+.terminal-note { text-align: left; font-size: 0.72rem; color: var(--text-dim); line-height: 1.5; margin-top: 2px; }
+
+.terminal-badge {
+  width: 56px; height: 56px; border-radius: 50%; margin: 4px auto 2px;
+  background: var(--accent); color: #1a1200;
+  font-family: var(--font-display); font-size: 1.7rem;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 22px var(--accent-glow);
+}
+.terminal-welcome { font-family: var(--font-display); font-size: 1.5rem; letter-spacing: 0.5px; margin-top: 6px; }
+.terminal-welcome span { color: var(--accent); }
+.terminal-stats { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; }
+
+/* ---------------- Tutorial ---------------- */
+.tutorial-card { position: relative; padding-top: 44px; }
+.tutorial-skip { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 0.78rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.tutorial-skip:hover { color: var(--accent); }
+.tutorial-icon { width: 64px; height: 64px; margin: 0 auto 14px; position: relative; }
+.tutorial-icon::before, .tutorial-icon::after { content: ''; position: absolute; }
+.tutorial-step-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); letter-spacing: 1.5px; margin-bottom: 4px; text-transform: uppercase; }
+.tutorial-body { color: var(--text-dim); font-size: 0.92rem; line-height: 1.55; margin: 6px 0 4px; }
+.tutorial-dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 4px; }
+.tutorial-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--steel-border); transition: background 0.2s ease; }
+.tutorial-dots span.on { background: var(--accent); }
+
+/* Simple CSS-drawn icons per tutorial step */
+.tutorial-icon.icon-walls::before { inset: 0; border: 3px solid var(--accent); border-radius: 6px; }
+.tutorial-icon.icon-walls::after { inset: 14px; border: 2px dashed var(--danger); border-radius: 4px; animation: iconPulse 1.2s ease-in-out infinite; }
+.tutorial-icon.icon-puzzle::before { top: 6px; left: 6px; width: 22px; height: 22px; background: var(--accent); border-radius: 50%; }
+.tutorial-icon.icon-puzzle::after { bottom: 6px; right: 6px; width: 22px; height: 22px; background: var(--success); border-radius: 4px; transform: rotate(20deg); }
+.tutorial-icon.icon-streak::before { left: 50%; top: 0; width: 4px; height: 64px; background: var(--accent); transform: translateX(-50%) rotate(18deg); box-shadow: 0 0 14px var(--accent-glow); }
+.tutorial-icon.icon-streak::after { left: 50%; top: 0; width: 4px; height: 40px; background: var(--safety-yellow); transform: translateX(-70%) rotate(18deg); opacity: 0.6; }
+.tutorial-icon.icon-pause::before { left: 20px; top: 4px; width: 8px; height: 56px; background: var(--text-chalk); border-radius: 2px; }
+.tutorial-icon.icon-pause::after { left: 36px; top: 4px; width: 8px; height: 56px; background: var(--text-chalk); border-radius: 2px; }
+@keyframes iconPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* ---------------- Main menu ---------------- */
+#screen-menu { position: relative; padding-top: 26px; }
+.menu-sound { position: absolute; top: 0; right: 0; }
+.menu-glow {
+  position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+  width: 420px; height: 240px;
+  background: radial-gradient(ellipse at center, var(--accent-soft) 0%, transparent 70%);
+  filter: blur(8px); animation: menuGlowPulse 4.5s ease-in-out infinite; pointer-events: none;
+}
+@keyframes menuGlowPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+#menu-player-tag { font-family: var(--font-mono); }
+
+.game-title {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: clamp(2.6rem, 10vw, 4.4rem); letter-spacing: 2px; line-height: 0.95;
+  text-shadow: 0 0 30px var(--accent-glow);
+}
+.game-title.small { font-size: clamp(1.6rem, 7vw, 2.1rem); margin: 4px 0 2px; }
+.game-title span { display: block; color: var(--accent); }
+.game-tagline { color: var(--text-dim); margin: 12px 0 36px; font-size: 0.98rem; letter-spacing: 0.3px; }
 
 .menu-buttons { display: flex; flex-direction: column; gap: 12px; width: min(320px, 82vw); }
+.menu-footer { margin-top: 30px; color: var(--text-dim); font-size: 0.82rem; }
 
-.screen-heading { font-size: 1.8rem; margin: 20px 0 24px; }
-.settings-hint { color: var(--text-dim); margin-bottom: 20px; }
-
+/* ---------------- Level select ---------------- */
 .level-grid { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 26px; }
-.level-card { background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md); padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; color: var(--text-chalk); }
-.level-num { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
-.level-name { font-size: 0.84rem; }
+.level-card {
+  background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md);
+  padding: 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.level-card:not(.locked):hover { border-color: var(--accent); transform: translateY(-2px); }
+.level-card.locked { opacity: 0.45; cursor: not-allowed; }
+.level-num { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+.level-name { font-size: 0.84rem; font-weight: 600; }
+.level-best { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); }
 
-/* ---------------- HUD & stage ---------------- */
-#hud { width: 100%; display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 18px; }
-.hud-item { display: flex; flex-direction: column; align-items: center; }
-.hud-label { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; }
-.hud-value { font-size: 1.25rem; font-weight: 600; }
-#hud-timer.critical { color: #d1453f; }
+/* ---------------- Settings ---------------- */
+.settings-block { width: min(420px, 92vw); margin-bottom: 24px; text-align: left; }
+.settings-block h3 { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.4px; margin-bottom: 10px; }
+.settings-hint { color: var(--text-dim); font-weight: 400; font-family: var(--font-body); font-size: 0.75rem; }
 
-.stage-frame { width: 600px; height: 600px; margin: 0 auto; position: relative; }
-#game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: var(--radius-md); }
-#puzzle-layer { position: absolute; display: flex; align-items: center; justify-content: center; }
-.stage-hint { margin-top: 16px; color: var(--text-dim); font-size: 0.85rem; }
+.difficulty-toggle { display: flex; gap: 8px; }
+.diff-btn {
+  flex: 1; padding: 10px 6px; border-radius: var(--radius-sm);
+  border: 1px solid var(--steel-border); background: var(--bg-panel); color: var(--text-dim);
+  cursor: pointer; font-weight: 600; font-size: 0.86rem;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.diff-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
-/* ---------------- Pattern Completion puzzle ---------------- */
-.pc-wrap { flex-direction: column; gap: 6%; display: flex; align-items: center; }
+.theme-swatches { display: flex; gap: 12px; }
+.theme-swatch { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--steel-border); cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease; }
+.theme-swatch.theme-amber   { background: radial-gradient(circle at 35% 30%, #ffb870, #ff7a1a); }
+.theme-swatch.theme-cyan    { background: radial-gradient(circle at 35% 30%, #a9e6ff, #4fb8e0); }
+.theme-swatch.theme-violet  { background: radial-gradient(circle at 35% 30%, #d9c2f0, #a878d1); }
+.theme-swatch.theme-emerald { background: radial-gradient(circle at 35% 30%, #c3e0ba, #7fae72); }
+.theme-swatch.active { border-color: var(--text-chalk); transform: scale(1.1); }
+.theme-swatch.locked { opacity: 0.25; filter: grayscale(1); cursor: not-allowed; }
+
+/* ---------------- HUD ---------------- */
+#hud { width: 100%; display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3.5vw, 22px); margin-bottom: 18px; flex-wrap: wrap; }
+.hud-item { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
+.hud-label { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.hud-value { font-family: var(--font-display); font-size: 1.3rem; }
+
+/* The timer is the signature readout: mono digits in a small riveted gauge */
+.hud-timer-wrap .hud-value { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-sm); padding: 3px 9px; font-variant-numeric: tabular-nums; }
+#hud-timer.critical { color: var(--danger); border-color: var(--danger); animation: timerPulse 0.5s ease-in-out infinite; }
+@keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+.hud-pause {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk);
+  cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; justify-content: center;
+}
+.hud-pause:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------------- Stage ---------------- */
+.stage-frame { width: 600px; height: 600px; margin: 0 auto; position: relative; transform-origin: top center; border-radius: var(--radius-md); }
+.stage-frame::after {
+  content: ''; position: absolute; inset: -6px; border-radius: 12px; pointer-events: none; opacity: 0;
+  background: repeating-linear-gradient(45deg, var(--safety-yellow) 0 10px, #1a1710 10px 20px);
+  transition: opacity 0.15s ease;
+}
+.stage-frame.warning::after { opacity: 0.55; animation: hazardFlicker 0.5s steps(2) infinite; }
+@keyframes hazardFlicker { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.2; } }
+
+.stage-shake { width: 100%; height: 100%; position: relative; z-index: 1; }
+#game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; border-radius: var(--radius-md); }
+#puzzle-layer { position: absolute; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; }
+#puzzle-layer > * { pointer-events: auto; }
+
+.stage-hint { margin-top: 16px; color: var(--text-dim); font-size: 0.85rem; min-height: 1.2em; }
+
+/* ---------------- Overlay cards ---------------- */
+.overlay-card {
+  background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md);
+  padding: 34px 30px; width: min(340px, 88vw);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  animation: fadeIn 0.25s ease;
+}
+.overlay-card h2 { font-family: var(--font-display); font-size: 1.9rem; letter-spacing: 0.5px; margin-bottom: 4px; }
+.overlay-card .btn { width: 100%; margin-top: 4px; }
+.overlay-stat { color: var(--text-dim); font-size: 0.95rem; }
+.overlay-stat span { color: var(--text-chalk); font-weight: 700; font-family: var(--font-mono); }
+.overlay-record { color: var(--success) !important; font-weight: 600; }
+.overlay-record span { color: var(--success); }
+.overlay-note { color: var(--accent); font-size: 0.85rem; font-weight: 600; margin-top: -2px; }
+.overlay-danger h2 { color: var(--danger); text-shadow: 0 0 24px var(--danger-glow); }
+.overlay-success h2 { color: var(--success); text-shadow: 0 0 24px var(--success-glow); }
+
+/* =========================================================================
+   Puzzle-specific styles — same class names as before, re-skinned.
+========================================================================= */
+.sm-wrap, .rl-wrap, .pc-wrap, .wb-wrap { width: 92%; height: 92%; display: flex; align-items: center; justify-content: center; }
+
+.sm-grid { width: 100%; height: 100%; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 4%; }
+.sm-node {
+  width: 22%; aspect-ratio: 1; border-radius: 50%;
+  background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk);
+  font-size: clamp(0.9rem, 4vw, 1.4rem); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.sm-node:disabled { cursor: default; }
+.sm-node.flash { background: var(--accent); color: #1a1200; box-shadow: 0 0 20px var(--accent-glow); transform: scale(1.08); }
+.sm-node.correct { background: var(--success); color: #0a1408; box-shadow: 0 0 20px var(--success-glow); }
+.sm-node.wrong { background: var(--danger); color: #1a0a0a; box-shadow: 0 0 20px var(--danger-glow); }
+.sm-node.solved { background: var(--success); color: #0a1408; }
+
+.rl-wrap { display: flex; gap: 8%; }
+.rl-dial { width: min(30%, 150px); aspect-ratio: 1; cursor: pointer; }
+.rl-ring { width: 100%; height: 100%; border-radius: 50%; position: relative; background: var(--bg-floor); border: 2px solid var(--steel-border); box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.55); }
+.rl-mark { position: absolute; left: 50%; bottom: 50%; width: 8%; height: 44%; margin-left: -4%; transform-origin: 50% 100%; border-radius: 4px; }
+.rl-mark.target { background: var(--success); opacity: 0.55; }
+.rl-mark.pointer { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.rl-mark.pointer::before { content: ''; position: absolute; top: -35%; left: -60%; width: 220%; height: 25%; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+.rl-dial.solved .rl-mark.pointer { background: var(--success); box-shadow: 0 0 14px var(--success-glow); }
+.rl-dial.solved .rl-mark.pointer::before { background: var(--success); box-shadow: 0 0 14px var(--success-glow); }
+
+.hk-grid { width: 92%; height: 92%; display: grid; grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)); grid-auto-rows: 1fr; gap: 3%; align-content: center; }
+.hk-item { background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; aspect-ratio: 1; }
+.hk-orb { width: 70%; height: 70%; border-radius: 30%; background: linear-gradient(150deg, #3a3226, #6b5a3a); border: 1px solid var(--steel-border-light); }
+.hk-item.wrong-flash .hk-orb { animation: hkWrong 0.3s ease; }
+@keyframes hkWrong { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.9); filter: brightness(0.7); } }
+.hk-item.found .hk-orb { background: linear-gradient(150deg, var(--success), #3d6b34); box-shadow: 0 0 22px var(--success-glow); }
+
+.pc-wrap { flex-direction: column; gap: 6%; }
 .pc-row, .pc-options { display: flex; gap: 4%; justify-content: center; flex-wrap: wrap; }
-.pc-tile { width: min(15%, 60px); aspect-ratio: 1; background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+.pc-tile { width: min(15%, 60px); aspect-ratio: 1; background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-family: var(--font-display); font-size: 1.2rem; }
 .pc-tile.blank { border-style: dashed; }
-.pc-tile.option { cursor: pointer; }
-.pc-tile.correct-flash { border-color: #7fae72; }
-.pc-tile.wrong-flash { border-color: #d1453f; }
+.pc-tile.option { cursor: pointer; transition: border-color 0.15s ease, transform 0.1s ease; }
+.pc-tile.option:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pc-tile.correct-flash { border-color: var(--success); box-shadow: 0 0 18px var(--success-glow); }
+.pc-tile.wrong-flash { border-color: var(--danger); box-shadow: 0 0 18px var(--danger-glow); }
 .pc-shape { width: 55%; height: 55%; }
 .shape-circle { border-radius: 50%; }
 .shape-square { border-radius: 4px; }
 .shape-diamond { border-radius: 4px; transform: rotate(45deg); }
 .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 17px solid transparent; border-right: 17px solid transparent; border-bottom: 30px solid var(--tri-color, var(--accent)); }
 
-/* ---------------- Hidden Key Search puzzle ---------------- */
-.hk-grid { width: 92%; height: 92%; display: grid; grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)); gap: 3%; align-content: center; }
-.hk-item { background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; aspect-ratio: 1; }
-.hk-orb { width: 70%; height: 70%; border-radius: 30%; background: linear-gradient(150deg, #3a3226, #6b5a3a); }
-.hk-item.wrong-flash .hk-orb { filter: brightness(0.7); }
-.hk-item.found .hk-orb { background: linear-gradient(150deg, #7fae72, #3d6b34); }
-
-/* ---------------- Symbol Memory puzzle ---------------- */
-.sm-wrap { width: 92%; height: 92%; display: flex; align-items: center; justify-content: center; }
-.sm-grid { width: 100%; height: 100%; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 4%; }
-.sm-node { width: 22%; aspect-ratio: 1; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.sm-node.flash { background: var(--accent); color: #1a1200; }
-.sm-node.correct, .sm-node.solved { background: #7fae72; color: #0a1408; }
-.sm-node.wrong { background: #d1453f; color: #1a0a0a; }
-
-/* ---------------- Rotating Lock puzzle ---------------- */
-.rl-wrap { width: 92%; height: 92%; display: flex; align-items: center; justify-content: center; gap: 8%; }
-.rl-dial { width: min(30%, 150px); aspect-ratio: 1; cursor: pointer; }
-.rl-ring { width: 100%; height: 100%; border-radius: 50%; position: relative; background: var(--bg-concrete); border: 2px solid var(--steel-border); }
-.rl-mark { position: absolute; left: 50%; bottom: 50%; width: 8%; height: 44%; margin-left: -4%; transform-origin: 50% 100%; border-radius: 4px; }
-.rl-mark.target { background: #7fae72; opacity: 0.55; }
-.rl-mark.pointer { background: var(--accent); transition: transform 0.32s ease; }
-.rl-dial.solved .rl-mark.pointer { background: #7fae72; }
-
-/* ---------------- Wire Connect puzzle ---------------- */
 .wc-grid { width: 92%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(var(--wc-size), 1fr); grid-template-rows: repeat(var(--wc-size), 1fr); gap: 4%; }
-.wc-cell { background: rgba(236, 231, 216, 0.04); border: 1px solid var(--steel-border); border-radius: 5px; cursor: pointer; }
-.wc-cell.endpoint { background: var(--pair-color); border-color: transparent; }
-.wc-cell.path { background: var(--pair-color); opacity: 0.55; border-color: transparent; }
-.wc-cell.invalid { background: rgba(209, 69, 63, 0.3); }
+.wc-cell { background: rgba(236, 231, 216, 0.04); border: 1px solid var(--steel-border); border-radius: 5px; cursor: pointer; transition: background 0.12s ease; }
+.wc-cell.endpoint { background: var(--pair-color); box-shadow: 0 0 10px var(--pair-color); border-color: transparent; }
+.wc-cell.path { background: color-mix(in srgb, var(--pair-color) 55%, transparent); border-color: transparent; }
+.wc-cell.connected { box-shadow: 0 0 8px var(--pair-color); }
+.wc-cell.active-start { box-shadow: 0 0 0 3px rgba(236, 231, 216, 0.5); }
+.wc-cell.invalid { background: var(--danger-soft); }
 
-/* ---------------- Weight Balance puzzle ---------------- */
-.wb-wrap { width: 92%; display: flex; flex-direction: column; align-items: center; gap: 5%; }
-.wb-target { font-size: 1.1rem; }
-.wb-target span { color: var(--accent); }
-.wb-total { font-size: 0.85rem; color: var(--text-dim); }
-.wb-total.match { color: #7fae72; font-weight: 700; }
-.wb-total.over { color: #d1453f; }
+.wb-wrap { flex-direction: column; gap: 5%; }
+.wb-target { font-family: var(--font-display); font-size: 1.15rem; letter-spacing: 0.4px; }
+.wb-target span { font-family: var(--font-mono); color: var(--accent); font-size: 1.2rem; }
+.wb-total { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-dim); transition: color 0.15s ease; }
+.wb-total.match { color: var(--success); font-weight: 700; }
+.wb-total.over { color: var(--danger); }
 .wb-objects { display: flex; flex-wrap: wrap; gap: 3%; justify-content: center; }
-.wb-chip { width: 15%; min-width: 40px; aspect-ratio: 1; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk); cursor: pointer; }
-.wb-chip.selected { background: var(--accent); color: #1a1200; }
+.wb-chip { width: 15%; min-width: 40px; aspect-ratio: 1; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk); font-family: var(--font-mono); font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease; }
+.wb-chip:disabled { cursor: default; }
+.wb-chip.selected { background: var(--accent); color: #1a1200; box-shadow: 0 0 14px var(--accent-glow); transform: translateY(-2px); }
 
-/* ---------------- Themes & settings ---------------- */
-body[data-theme="cyan"]    { --accent: #4fb8e0; }
-body[data-theme="violet"]  { --accent: #a878d1; }
-body[data-theme="emerald"] { --accent: #7fae72; }
+/* ---------------- Small screens ---------------- */
+@media (max-width: 480px) {
+  .menu-buttons { width: 88vw; }
+  .overlay-card { padding: 26px 20px; }
+  .menu-sound { top: -4px; }
+}
 
-.settings-block { width: min(420px, 92vw); margin-bottom: 24px; text-align: left; }
-.settings-block h3 { font-size: 1.1rem; margin-bottom: 10px; }
-.theme-swatches { display: flex; gap: 12px; }
-.theme-swatch { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--steel-border); cursor: pointer; }
-.theme-swatch.theme-amber   { background: #ff7a1a; }
-.theme-swatch.theme-cyan    { background: #4fb8e0; }
-.theme-swatch.theme-violet  { background: #a878d1; }
-.theme-swatch.theme-emerald { background: #7fae72; }
-.theme-swatch.locked { opacity: 0.25; filter: grayscale(1); cursor: not-allowed; }
-
-/* ---------------- Overlays ---------------- */
-.screen.overlay { position: fixed; inset: 0; background: rgba(8, 7, 5, 0.86); z-index: 50; display: none; align-items: center; justify-content: center; }
-.screen.overlay.active { display: flex; }
-.overlay-card { background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md); padding: 34px 30px; width: min(340px, 88vw); display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.overlay-card h2 { font-size: 1.7rem; }
-.overlay-card .btn { width: 100%; }
-.overlay-stat { color: var(--text-dim); }
-.overlay-stat span { color: var(--text-chalk); font-weight: 700; }
-.overlay-danger h2 { color: #d1453f; }
-.overlay-success h2 { color: #7fae72; }
-.hud-pause { width: 38px; height: 38px; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--steel-border); color: var(--text-chalk); cursor: pointer; }
-
-/* ---------------- Landing / Access Terminal ---------------- */
-#screen-landing { padding-top: 8vh; min-height: 60vh; justify-content: center; }
-.terminal-card { width: min(380px, 92vw); background: var(--bg-panel); border: 1px solid var(--steel-border); border-radius: var(--radius-md); padding: 30px 26px 26px; }
-.terminal-eyebrow { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 6px; }
-.terminal-panel { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
-.terminal-label { text-align: left; font-size: 0.78rem; color: var(--text-dim); }
-.terminal-input { font-size: 1rem; background: var(--bg-concrete); border: 1px solid var(--steel-border); border-radius: 4px; color: var(--text-chalk); padding: 12px 14px; }
-.terminal-note { text-align: left; font-size: 0.72rem; color: var(--text-dim); }
-.terminal-badge { width: 56px; height: 56px; border-radius: 50%; margin: 4px auto 2px; background: var(--accent); color: #1a1200; font-size: 1.7rem; display: flex; align-items: center; justify-content: center; }
-.terminal-welcome { font-size: 1.5rem; margin-top: 6px; }
-.terminal-welcome span { color: var(--accent); }
-.terminal-stats { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; }
-.game-title.small { font-size: 1.8rem; margin: 4px 0 2px; }
-.btn-text { background: none; border: none; color: var(--text-dim); font-size: 0.85rem; text-decoration: underline; padding: 8px; cursor: pointer; }
-
-/* ---------------- Tutorial ---------------- */
-.tutorial-card { position: relative; padding-top: 30px; }
-.tutorial-skip { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 0.78rem; cursor: pointer; }
-.tutorial-step-label { font-size: 0.68rem; color: var(--accent); letter-spacing: 1.5px; margin-bottom: 4px; text-transform: uppercase; }
-.tutorial-body { color: var(--text-dim); font-size: 0.92rem; line-height: 1.55; margin: 6px 0 4px; }
-.tutorial-dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 4px; }
-.tutorial-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--steel-border); }
-.tutorial-dots span.on { background: var(--accent); }
-
-/* ---------------- Sound toggle ---------------- */
-.menu-sound { position: absolute; top: 0; right: 0; }
-#screen-menu { position: relative; }
-
-/* ---------------- Difficulty toggle ---------------- */
-.difficulty-toggle { display: flex; gap: 8px; }
-.diff-btn { flex: 1; padding: 10px 6px; border-radius: 4px; border: 1px solid var(--steel-border); background: var(--bg-panel); color: var(--text-dim); cursor: pointer; font-weight: 600; }
-.diff-btn.active { border-color: var(--accent); color: var(--accent); }
+/* ---------------- Reduced motion ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
