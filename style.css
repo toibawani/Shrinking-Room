@@ -164,3 +164,8 @@ body[data-theme="emerald"] { --accent: #7fae72; }
 /* ---------------- Sound toggle ---------------- */
 .menu-sound { position: absolute; top: 0; right: 0; }
 #screen-menu { position: relative; }
+
+/* ---------------- Difficulty toggle ---------------- */
+.difficulty-toggle { display: flex; gap: 8px; }
+.diff-btn { flex: 1; padding: 10px 6px; border-radius: 4px; border: 1px solid var(--steel-border); background: var(--bg-panel); color: var(--text-dim); cursor: pointer; font-weight: 600; }
+.diff-btn.active { border-color: var(--accent); color: var(--accent); }

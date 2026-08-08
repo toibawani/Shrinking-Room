@@ -3,6 +3,7 @@
 // Puzzle content is still a stub here — real puzzle types land next.
 
 const STORAGE_KEY = 'shrinkingRoomState_v1';
+const DIFFICULTY_MULTIPLIERS = { easy: 1.35, normal: 1.0, hard: 0.72 };
 const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
 const TUTORIAL_STEPS = [
   { title: 'The room is shrinking.', body: 'The walls close in on a timer. Solve the puzzle inside before they reach you.' },
@@ -31,7 +32,7 @@ const GameState = {
 
 function $(id) { return document.getElementById(id); }
 
-function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, stats: { roomsCleared: 0, bestStreak: 0 } }; }
+function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, difficulty: 'normal', stats: { roomsCleared: 0, bestStreak: 0 } }; }
 function loadPersisted() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -62,6 +63,7 @@ function renderThemeSwatches() {
 }
 function formatTime(s) { return Math.max(0, s).toFixed(1); }
 function getCurrentLevelData() { return LEVELS[GameState.currentLevelIndex]; }
+function getEffectiveTimeLimit(level) { return level.timeLimit * (DIFFICULTY_MULTIPLIERS[persisted.difficulty] || 1); }
 
 function switchBaseScreen(id) {
   document.querySelectorAll('.screen').forEach(s => { if (!s.classList.contains('overlay')) s.classList.remove('active'); });
@@ -86,7 +88,7 @@ function renderLevelGrid() {
 function bindEvents() {
   $('btn-play').addEventListener('click', () => startLevel(0));
   $('btn-level-select').addEventListener('click', () => { renderLevelGrid(); switchBaseScreen('screen-level-select'); });
-  $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); switchBaseScreen('screen-settings'); });
+  $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); syncDifficultyButtons(); syncSoundButtons(); switchBaseScreen('screen-settings'); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
 
@@ -114,6 +116,14 @@ function bindEvents() {
   $('btn-sound-toggle').addEventListener('click', () => setSound(!persisted.soundOn));
   document.querySelectorAll('.diff-btn[data-sound]').forEach(btn => {
     btn.addEventListener('click', () => setSound(btn.dataset.sound === 'on'));
+  });
+  document.querySelectorAll('.diff-btn[data-difficulty]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      persisted.difficulty = btn.dataset.difficulty;
+      savePersisted();
+      syncDifficultyButtons();
+      SFX.click();
+    });
   });
   $('input-callsign').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-create-profile').click(); });
   $('btn-continue-profile').addEventListener('click', () => {
@@ -169,7 +179,8 @@ function handleLevelComplete() {
   const prevBest = persisted.bestTimes[level.id];
   if (prevBest === undefined || timeTaken < prevBest) persisted.bestTimes[level.id] = timeTaken;
 
-  if (timeTaken <= level.timeLimit * 0.6) GameState.combo++; else GameState.combo = 0;
+  const effectiveLimit = getEffectiveTimeLimit(level);
+  if (timeTaken <= effectiveLimit * 0.6) GameState.combo++; else GameState.combo = 0;
   persisted.stats.roomsCleared++;
   persisted.stats.bestStreak = Math.max(persisted.stats.bestStreak, GameState.combo);
 
@@ -234,7 +245,8 @@ function drawParticles(ctx) {
 function updateGameplay(dt) {
   GameState.elapsed += dt;
   const level = getCurrentLevelData();
-  const timeRemaining = level.timeLimit - GameState.elapsed;
+  const effectiveLimit = getEffectiveTimeLimit(level);
+  const timeRemaining = effectiveLimit - GameState.elapsed;
   $('hud-timer').textContent = formatTime(timeRemaining);
   $('hud-timer').classList.toggle('critical', timeRemaining <= 5);
 
@@ -247,7 +259,7 @@ function updateGameplay(dt) {
     return;
   }
 
-  const notchInterval = level.timeLimit / level.shrinkNotches;
+  const notchInterval = effectiveLimit / level.shrinkNotches;
   const notchesElapsed = Math.floor(GameState.elapsed / notchInterval);
   if (notchesElapsed > GameState.currentNotch) {
     GameState.currentNotch = notchesElapsed;
@@ -346,6 +358,11 @@ function closeTutorial() {
   switchBaseScreen('screen-menu');
 }
 
+function syncDifficultyButtons() {
+  document.querySelectorAll('.diff-btn[data-difficulty]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.difficulty === persisted.difficulty);
+  });
+}
 function syncSoundButtons() {
   document.querySelectorAll('.diff-btn[data-sound]').forEach(btn => {
     btn.classList.toggle('active', (btn.dataset.sound === 'on') === persisted.soundOn);
@@ -365,6 +382,7 @@ function initGame() {
   SFX.setMuted(!persisted.soundOn);
   renderLevelGrid();
   renderLanding();
+  syncDifficultyButtons();
   syncSoundButtons();
   bindEvents();
   requestAnimationFrame(gameLoopTick);
