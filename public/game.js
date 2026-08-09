@@ -108,15 +108,24 @@ function renderLevelGrid() {
   grid.innerHTML = '';
   LEVELS.forEach((level, i) => {
     const card = document.createElement('button');
-    card.className = 'level-card';
-    card.innerHTML = `<span class="level-num">${level.id}</span><span class="level-name">${level.name}</span>`;
-    card.addEventListener('click', () => startLevel(i));
+    const locked = level.id > persisted.unlockedLevel;
+    card.className = 'level-card' + (locked ? ' locked' : '');
+    card.disabled = locked;
+    const best = persisted.bestTimes[level.id];
+    const prevName = i > 0 ? LEVELS[i - 1].name : '';
+    card.innerHTML = locked
+      ? `<span class="level-num">${level.id}</span><span class="level-name">Clear "${prevName}"</span>`
+      : `<span class="level-num">${level.id}</span><span class="level-name">${level.name}</span><span class="level-best">${best !== undefined ? best.toFixed(1) + 's best' : 'Not cleared'}</span>`;
+    if (!locked) card.addEventListener('click', () => { SFX.click(); startLevel(i); });
     grid.appendChild(card);
   });
 }
 
 function bindEvents() {
-  $('btn-play').addEventListener('click', () => startLevel(0));
+  $('btn-play').addEventListener('click', () => {
+    const idx = Math.max(0, Math.min(persisted.unlockedLevel - 1, LEVELS.length - 1));
+    startLevel(idx);
+  });
   $('btn-level-select').addEventListener('click', () => { renderLevelGrid(); switchBaseScreen('screen-level-select'); });
   $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); syncDifficultyButtons(); syncSoundButtons(); switchBaseScreen('screen-settings'); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
@@ -204,7 +213,7 @@ function mountCurrentPuzzle() {
 
 function handlePuzzleSolved() {
   SFX.solved();
-  spawnBurstParticles(300, 300, '#7fae72', 34);
+  spawnBurstParticles(300, 300, getCSSVar('--success') || '#7fae72', 34);
   GameState.puzzleIndexInLevel++;
   const level = getCurrentLevelData();
   if (GameState.puzzleIndexInLevel < level.puzzles.length) {
@@ -250,7 +259,7 @@ function shakeScreen(duration, intensity) {
   GameState.shake = { duration, intensity, elapsed: 0, active: true };
 }
 function updateShakeState(dt) {
-  const el = $('game-canvas');
+  const el = $('stage-shake');
   const s = GameState.shake;
   if (!s || !s.active) { el.style.transform = ''; return; }
   s.elapsed += dt * 1000;
@@ -320,19 +329,23 @@ function positionPuzzleLayer() {
   layer.style.height = size + 'px';
 }
 
+function getCSSVar(name) {
+  const v = getComputedStyle(document.body).getPropertyValue(name);
+  return v ? v.trim() : '';
+}
 function renderCanvas() {
   const canvas = $('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#272219';
+  ctx.fillStyle = getCSSVar('--bg-panel-raised') || '#272219';
   ctx.fillRect(0, 0, W, H);
 
   const size = GameState.displayedRoomSize;
   const inset = (W - size) / 2;
-  ctx.fillStyle = '#100e0a';
+  ctx.fillStyle = getCSSVar('--bg-floor') || '#100e0a';
   ctx.fillRect(inset, inset, size, size);
-  ctx.strokeStyle = '#ff7a1a';
+  ctx.strokeStyle = getCSSVar('--accent') || '#ff7a1a';
   ctx.lineWidth = 3;
   ctx.strokeRect(inset, inset, size, size);
   drawParticles(ctx);
