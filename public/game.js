@@ -103,6 +103,9 @@ function switchBaseScreen(id) {
 function showOverlay(id) { $(id).classList.add('active'); }
 function hideOverlay(id) { $(id).classList.remove('active'); }
 
+const LEVEL_COLORS = ['#ff3d81', '#35e6c8', '#ffe14d', '#7c5cff', '#ff7a3d', '#4dd8ff', '#a3ff5c', '#ff5c8a', '#5cffe0', '#ffcf5c', '#c15cff', '#5cff8f'];
+function levelColor(levelId) { return LEVEL_COLORS[(levelId - 1) % LEVEL_COLORS.length]; }
+
 function renderLevelGrid() {
   const grid = $('level-grid');
   grid.innerHTML = '';
@@ -111,6 +114,7 @@ function renderLevelGrid() {
     const locked = level.id > persisted.unlockedLevel;
     card.className = 'level-card' + (locked ? ' locked' : '');
     card.disabled = locked;
+    if (!locked) card.style.setProperty('--level-color', levelColor(level.id));
     const best = persisted.bestTimes[level.id];
     const prevName = i > 0 ? LEVELS[i - 1].name : '';
     card.innerHTML = locked
@@ -213,7 +217,7 @@ function mountCurrentPuzzle() {
 
 function handlePuzzleSolved() {
   SFX.solved();
-  spawnBurstParticles(300, 300, getCSSVar('--success') || '#7fae72', 34);
+  spawnBurstParticles(300, 300, getCSSVar('--success') || '#35e6c8', 34);
   GameState.puzzleIndexInLevel++;
   const level = getCurrentLevelData();
   if (GameState.puzzleIndexInLevel < level.puzzles.length) {
@@ -333,21 +337,50 @@ function getCSSVar(name) {
   const v = getComputedStyle(document.body).getPropertyValue(name);
   return v ? v.trim() : '';
 }
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 function renderCanvas() {
   const canvas = $('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = getCSSVar('--bg-panel-raised') || '#272219';
+
+  ctx.fillStyle = getCSSVar('--bg-panel-raised') || '#3a2568';
   ctx.fillRect(0, 0, W, H);
+
+  const activeWarning = GameState.isWarning && GameState.isPlaying;
+  if (activeWarning) {
+    ctx.save();
+    ctx.globalAlpha = 0.12 + 0.07 * Math.sin(GameState.elapsed * 14);
+    ctx.fillStyle = getCSSVar('--danger') || '#ff7a3d';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
 
   const size = GameState.displayedRoomSize;
   const inset = (W - size) / 2;
-  ctx.fillStyle = getCSSVar('--bg-floor') || '#100e0a';
-  ctx.fillRect(inset, inset, size, size);
-  ctx.strokeStyle = getCSSVar('--accent') || '#ff7a1a';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(inset, inset, size, size);
+  const roomColor = activeWarning ? (getCSSVar('--danger') || '#ff7a3d') : levelColor(getCurrentLevelData().id);
+
+  ctx.fillStyle = getCSSVar('--bg-floor') || '#170c30';
+  roundRectPath(ctx, inset, inset, size, size, 20);
+  ctx.fill();
+
+  ctx.save();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = roomColor;
+  ctx.shadowColor = roomColor;
+  ctx.shadowBlur = activeWarning ? 28 : 16;
+  roundRectPath(ctx, inset, inset, size, size, 20);
+  ctx.stroke();
+  ctx.restore();
+
   drawParticles(ctx);
 }
 
