@@ -28,6 +28,7 @@ db.exec(`
     current_theme TEXT NOT NULL DEFAULT 'amber',
     difficulty TEXT NOT NULL DEFAULT 'normal',
     sound_on INTEGER NOT NULL DEFAULT 1,
+    has_seen_tutorial INTEGER NOT NULL DEFAULT 0,
     stats TEXT NOT NULL DEFAULT '{"puzzlesSolved":0,"roomsCleared":0,"bestStreak":0}',
     updated_at INTEGER NOT NULL
   );

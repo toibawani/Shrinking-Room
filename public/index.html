@@ -13,27 +13,46 @@
 
 <div id="app">
 
-  <!-- LANDING / ACCESS TERMINAL (first screen every session) -->
+  <!-- LANDING / SIGN IN (first screen every session) -->
   <section id="screen-landing" class="screen active">
     <div class="terminal-card">
-      <p class="terminal-eyebrow">ACCESS TERMINAL</p>
+      <p class="terminal-eyebrow">SHRINKING ROOM ACCOUNT</p>
       <h1 class="game-title small">SHRINKING<span>ROOM</span></h1>
 
-      <div class="terminal-panel" id="panel-create">
-        <label class="terminal-label" for="input-callsign">Enter a callsign</label>
-        <input class="terminal-input" id="input-callsign" type="text" maxlength="16" placeholder="e.g. VOSS" autocomplete="off">
-        <button class="btn btn-primary" id="btn-create-profile" type="button">Enter</button>
-        <p class="terminal-note">Saved on this device only — no server, no password.</p>
+      <div class="auth-tabs" id="auth-tabs">
+        <button class="auth-tab active" id="tab-signin" type="button" data-tab="signin">Sign In</button>
+        <button class="auth-tab" id="tab-signup" type="button" data-tab="signup">Sign Up</button>
       </div>
 
-      <div class="terminal-panel" id="panel-welcome" style="display:none;">
-        <div class="terminal-badge" id="welcome-badge">V</div>
-        <p class="terminal-welcome">Welcome back, <span id="welcome-name">Operator</span></p>
-        <p class="terminal-stats" id="welcome-stats">0 rooms cleared</p>
-        <button class="btn btn-primary" id="btn-continue-profile" type="button">Continue</button>
-        <button class="btn btn-text" id="btn-switch-profile" type="button">Not you? Switch profile</button>
-      </div>
+      <!-- Sign in -->
+      <form class="terminal-panel" id="panel-signin" autocomplete="on">
+        <label class="terminal-label" for="signin-username">Username</label>
+        <input class="terminal-input" id="signin-username" type="text" maxlength="16" autocomplete="username" required>
+        <label class="terminal-label" for="signin-password">Password</label>
+        <input class="terminal-input" id="signin-password" type="password" autocomplete="current-password" required>
+        <p class="terminal-error" id="signin-error"></p>
+        <button class="btn btn-primary" id="btn-signin" type="submit">Sign In</button>
+      </form>
+
+      <!-- Sign up -->
+      <form class="terminal-panel" id="panel-signup" autocomplete="on" style="display:none;">
+        <label class="terminal-label" for="signup-username">Username</label>
+        <input class="terminal-input" id="signup-username" type="text" maxlength="16" placeholder="3-16 characters, letters/numbers/_" autocomplete="username" required>
+        <label class="terminal-label" for="signup-password">Password</label>
+        <input class="terminal-input" id="signup-password" type="password" placeholder="At least 6 characters" autocomplete="new-password" required>
+        <label class="terminal-label" for="signup-confirm">Confirm password</label>
+        <input class="terminal-input" id="signup-confirm" type="password" autocomplete="new-password" required>
+        <p class="terminal-error" id="signup-error"></p>
+        <button class="btn btn-primary" id="btn-signup" type="submit">Create Account</button>
+      </form>
+
+      <p class="terminal-note">Your account and progress are stored on this server's database.</p>
     </div>
+  </section>
+
+  <!-- Shown briefly while we check for an existing session -->
+  <section id="screen-loading" class="screen">
+    <p class="terminal-eyebrow">Loading&hellip;</p>
   </section>
 
   <!-- HOW TO PLAY -->
@@ -43,6 +62,7 @@
       <p class="tutorial-step-label" id="tutorial-step-label">Step 1 of 4</p>
       <h2 id="tutorial-title">The room is shrinking.</h2>
       <p class="tutorial-body" id="tutorial-body"></p>
+
       <div class="tutorial-dots" id="tutorial-dots"></div>
       <button class="btn btn-primary" id="btn-tutorial-next" type="button">Next</button>
     </div>
@@ -88,8 +108,9 @@
       </div>
     </div>
     <div class="settings-block">
-      <h3>Operator</h3>
-      <button class="btn btn-secondary" id="btn-switch-profile-settings" type="button">Switch profile</button>
+      <h3>Account</h3>
+      <p class="settings-hint" id="settings-username">Signed in</p>
+      <button class="btn btn-secondary" id="btn-logout" type="button">Log Out</button>
     </div>
     <div class="settings-block">
       <h3>Room Theme <span class="settings-hint">(unlocked by streaks)</span></h3>

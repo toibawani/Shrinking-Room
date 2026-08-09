@@ -1,8 +1,9 @@
 // game.js
-// Core loop: screen navigation plus the shrinking-room timer/canvas mechanic.
-// Puzzle content is still a stub here — real puzzle types land next.
+// Core loop: auth, screen navigation, and the shrinking-room timer/canvas
+// mechanic. Progress now lives server-side (see src/progress.js) instead
+// of localStorage — persisted() below is just an in-memory cache of what
+// the server told us, kept in sync with PUT /api/progress.
 
-const STORAGE_KEY = 'shrinkingRoomState_v1';
 const DIFFICULTY_MULTIPLIERS = { easy: 1.35, normal: 1.0, hard: 0.72 };
 const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
 const TUTORIAL_STEPS = [
@@ -14,6 +15,7 @@ const TUTORIAL_STEPS = [
 
 const GameState = {
   baseScreen: 'screen-landing',
+  username: null,
   currentLevelIndex: 0,
   puzzleIndexInLevel: 0,
   combo: 0,
@@ -33,15 +35,42 @@ const GameState = {
 
 function $(id) { return document.getElementById(id); }
 
-function defaultPersisted() { return { profile: null, bestTimes: {}, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, difficulty: 'normal', stats: { roomsCleared: 0, bestStreak: 0 } }; }
-function loadPersisted() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? Object.assign(defaultPersisted(), JSON.parse(raw)) : defaultPersisted();
-  } catch (e) { return defaultPersisted(); }
+function defaultPersisted() {
+  return { bestTimes: {}, unlockedLevel: 1, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, difficulty: 'normal', stats: { puzzlesSolved: 0, roomsCleared: 0, bestStreak: 0 } };
 }
-function savePersisted() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)); } catch (e) {} }
-let persisted = null;
+let persisted = defaultPersisted();
+
+async function apiFetch(url, options) {
+  const res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options));
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* empty body is fine */ }
+  return { ok: res.ok, status: res.status, data };
+}
+
+async function fetchMe() {
+  const { ok, data } = await apiFetch('/api/auth/me');
+  return ok ? data.username : null;
+}
+async function fetchProgress() {
+  const { ok, data } = await apiFetch('/api/progress');
+  return ok ? data : defaultPersisted();
+}
+async function savePersisted() {
+  try { await apiFetch('/api/progress', { method: 'PUT', body: JSON.stringify(persisted) }); }
+  catch (e) { console.warn('Could not save progress to the server:', e); }
+}
+async function signUp(username, password) {
+  return apiFetch('/api/auth/signup', { method: 'POST', body: JSON.stringify({ username, password }) });
+}
+async function signIn(username, password) {
+  return apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+}
+async function logOut() {
+  await apiFetch('/api/auth/logout', { method: 'POST' });
+  GameState.username = null;
+  persisted = defaultPersisted();
+  switchBaseScreen('screen-landing');
+}
 
 function renderThemeSwatches() {
   const wrap = $('theme-swatches');
@@ -102,15 +131,33 @@ function bindEvents() {
   $('btn-next-level').addEventListener('click', () => { hideOverlay('screen-level-complete'); startLevel(Math.min(GameState.currentLevelIndex + 1, LEVELS.length - 1)); });
   $('btn-menu-from-complete').addEventListener('click', () => { hideOverlay('screen-level-complete'); switchBaseScreen('screen-menu'); });
 
-  SFX.unlock();
-  $('btn-create-profile').addEventListener('click', () => {
+  $('tab-signin').addEventListener('click', () => switchAuthTab('signin'));
+  $('tab-signup').addEventListener('click', () => switchAuthTab('signup'));
+
+  $('panel-signin').addEventListener('submit', async (e) => {
+    e.preventDefault();
     SFX.unlock();
-    const name = $('input-callsign').value.trim().slice(0, 16);
-    if (!name) { $('input-callsign').focus(); return; }
-    persisted.profile = { name, createdAt: Date.now() };
-    savePersisted();
-    openTutorial(true);
+    const username = $('signin-username').value.trim();
+    const password = $('signin-password').value;
+    $('signin-error').textContent = '';
+    const { ok, data } = await signIn(username, password);
+    if (!ok) { $('signin-error').textContent = data.error || 'Something went wrong.'; return; }
+    await afterAuthSuccess(data.username);
   });
+
+  $('panel-signup').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    SFX.unlock();
+    const username = $('signup-username').value.trim();
+    const password = $('signup-password').value;
+    const confirm = $('signup-confirm').value;
+    $('signup-error').textContent = '';
+    if (password !== confirm) { $('signup-error').textContent = 'Passwords do not match.'; return; }
+    const { ok, data } = await signUp(username, password);
+    if (!ok) { $('signup-error').textContent = data.error || 'Something went wrong.'; return; }
+    await afterAuthSuccess(data.username);
+  });
+
   $('btn-how-to-play').addEventListener('click', () => openTutorial(false));
   $('btn-tutorial-next').addEventListener('click', () => advanceTutorial());
   $('btn-skip-tutorial').addEventListener('click', () => closeTutorial());
@@ -126,12 +173,7 @@ function bindEvents() {
       SFX.click();
     });
   });
-  $('input-callsign').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-create-profile').click(); });
-  $('btn-continue-profile').addEventListener('click', () => {
-    if (!persisted.hasSeenTutorial) openTutorial(true); else switchBaseScreen('screen-menu');
-  });
-  $('btn-switch-profile').addEventListener('click', () => switchProfile());
-  $('btn-switch-profile-settings').addEventListener('click', () => { switchProfile(); switchBaseScreen('screen-landing'); });
+  $('btn-logout').addEventListener('click', () => logOut());
 }
 
 function startLevel(index) {
@@ -312,21 +354,29 @@ function gameLoopTick(timestamp) {
   requestAnimationFrame(gameLoopTick);
 }
 
-function renderLanding() {
-  const hasProfile = !!(persisted.profile && persisted.profile.name);
-  $('panel-create').style.display = hasProfile ? 'none' : 'flex';
-  $('panel-welcome').style.display = hasProfile ? 'flex' : 'none';
-  if (hasProfile) {
-    const name = persisted.profile.name;
-    $('welcome-name').textContent = name;
-    $('welcome-badge').textContent = name.charAt(0).toUpperCase();
-    $('welcome-stats').textContent = `${persisted.stats.roomsCleared} rooms cleared · best streak ${persisted.stats.bestStreak}`;
-    $('menu-player-tag').textContent = name.toUpperCase();
-  } else {
-    $('input-callsign').value = '';
-  }
+function switchAuthTab(tab) {
+  $('tab-signin').classList.toggle('active', tab === 'signin');
+  $('tab-signup').classList.toggle('active', tab === 'signup');
+  $('panel-signin').style.display = tab === 'signin' ? 'flex' : 'none';
+  $('panel-signup').style.display = tab === 'signup' ? 'flex' : 'none';
+  $('signin-error').textContent = '';
+  $('signup-error').textContent = '';
 }
-function switchProfile() { persisted.profile = null; savePersisted(); renderLanding(); }
+
+async function afterAuthSuccess(username) {
+  GameState.username = username;
+  persisted = await fetchProgress();
+  document.body.dataset.theme = persisted.currentTheme;
+  SFX.setMuted(!persisted.soundOn);
+  syncDifficultyButtons();
+  syncSoundButtons();
+  renderThemeSwatches();
+  renderLevelGrid();
+  $('menu-player-tag').textContent = username.toUpperCase();
+  $('settings-username').textContent = `Signed in as ${username}`;
+  if (!persisted.hasSeenTutorial) openTutorial(true);
+  else switchBaseScreen('screen-menu');
+}
 
 function openTutorial(fromLanding) {
   GameState.tutorialStep = 0;
@@ -380,16 +430,17 @@ function setSound(on) {
   syncSoundButtons();
 }
 
-function initGame() {
-  persisted = loadPersisted();
-  document.body.dataset.theme = persisted.currentTheme;
-  SFX.setMuted(!persisted.soundOn);
-  renderLevelGrid();
-  renderLanding();
-  syncDifficultyButtons();
-  syncSoundButtons();
+async function initGame() {
   bindEvents();
   requestAnimationFrame(gameLoopTick);
+
+  switchBaseScreen('screen-loading');
+  const existingUser = await fetchMe();
+  if (existingUser) {
+    await afterAuthSuccess(existingUser);
+  } else {
+    switchBaseScreen('screen-landing');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initGame);

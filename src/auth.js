@@ -53,7 +53,7 @@ router.post('/signup', (req, res) => {
 
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (existing) {
-    return res.status(409).json({ error: 'That callsign is already taken.' });
+    return res.status(409).json({ error: 'That username is already taken.' });
   }
 
   const passwordHash = bcrypt.hashSync(password, 10);
