@@ -135,10 +135,10 @@ function bindEvents() {
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
 
-  $('btn-pause').addEventListener('click', () => { GameState.isPaused = true; showOverlay('screen-pause'); });
-  $('btn-resume').addEventListener('click', () => { GameState.isPaused = false; hideOverlay('screen-pause'); });
-  $('btn-restart-from-pause').addEventListener('click', () => { GameState.isPaused = false; hideOverlay('screen-pause'); startLevel(GameState.currentLevelIndex); });
-  $('btn-menu-from-pause').addEventListener('click', () => { GameState.isPaused = false; hideOverlay('screen-pause'); switchBaseScreen('screen-menu'); });
+  $('btn-pause').addEventListener('click', () => { GameState.isPaused = true; SFX.setMuted(true); showOverlay('screen-pause'); });
+  $('btn-resume').addEventListener('click', () => { GameState.isPaused = false; SFX.setMuted(!persisted.soundOn); hideOverlay('screen-pause'); });
+  $('btn-restart-from-pause').addEventListener('click', () => { GameState.isPaused = false; SFX.setMuted(!persisted.soundOn); hideOverlay('screen-pause'); startLevel(GameState.currentLevelIndex); });
+  $('btn-menu-from-pause').addEventListener('click', () => { GameState.isPaused = false; SFX.setMuted(!persisted.soundOn); SFX.stopBackground(); hideOverlay('screen-pause'); switchBaseScreen('screen-menu'); });
   $('btn-retry').addEventListener('click', () => { hideOverlay('screen-game-over'); startLevel(GameState.currentLevelIndex); });
   $('btn-menu-from-gameover').addEventListener('click', () => { hideOverlay('screen-game-over'); switchBaseScreen('screen-menu'); });
   $('btn-next-level').addEventListener('click', () => { hideOverlay('screen-level-complete'); startLevel(Math.min(GameState.currentLevelIndex + 1, LEVELS.length - 1)); });
@@ -201,6 +201,7 @@ function startLevel(index) {
   $('hud-best').textContent = best !== undefined ? best.toFixed(1) + 's' : '--';
   switchBaseScreen('screen-game');
   GameState.isPlaying = true;
+  SFX.startBackground();
 
   GameState.puzzleIndexInLevel = 0;
   mountCurrentPuzzle();
@@ -229,6 +230,7 @@ function handlePuzzleSolved() {
 
 function handleLevelComplete() {
   GameState.isPlaying = false;
+  SFX.stopBackground();
   SFX.levelComplete();
   const level = getCurrentLevelData();
   const timeTaken = GameState.elapsed;
@@ -309,11 +311,14 @@ function updateGameplay(dt) {
   if (timeRemaining <= 0) {
     GameState.isPlaying = false;
     GameState.combo = 0;
+    SFX.stopBackground();
     SFX.gameOver();
     $('game-over-time').textContent = GameState.elapsed.toFixed(1);
     showOverlay('screen-game-over');
     return;
   }
+
+  SFX.updateBackground(1 - timeRemaining / effectiveLimit);
 
   const notchInterval = effectiveLimit / level.shrinkNotches;
   const notchesElapsed = Math.floor(GameState.elapsed / notchInterval);
