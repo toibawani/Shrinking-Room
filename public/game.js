@@ -107,6 +107,11 @@ const LEVEL_COLORS = ['#ff3d81', '#35e6c8', '#ffe14d', '#7c5cff', '#ff7a3d', '#4
 function levelColor(levelId) { return LEVEL_COLORS[(levelId - 1) % LEVEL_COLORS.length]; }
 
 function renderLevelGrid() {
+  const streakEl = $('level-select-streak');
+  if (GameState.combo > 0) streakEl.textContent = `Current streak: ${GameState.combo}`;
+  else if (persisted.stats.bestStreak > 0) streakEl.textContent = `Best streak: ${persisted.stats.bestStreak}`;
+  else streakEl.textContent = 'Clear a room fast to start a streak';
+
   const grid = $('level-grid');
   grid.innerHTML = '';
   LEVELS.forEach((level, i) => {

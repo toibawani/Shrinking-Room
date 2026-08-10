@@ -80,6 +80,7 @@ button { font-family: inherit; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 .screen-heading { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 6vw, 2.6rem); margin: 20px 0 24px; color: var(--text-bright); }
+.level-select-streak { font-family: var(--font-mono); font-size: 0.82rem; color: var(--volt); margin: -14px 0 18px; }
 
 /* ---------------- Buttons (tactile "candy button" press) ---------------- */
 .btn {
