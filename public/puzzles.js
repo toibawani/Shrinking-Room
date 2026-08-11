@@ -522,11 +522,16 @@ const WordForge = {
     const minLength = params.minLength || 3;
 
     const pool = WORD_BANK[prRandomInt(0, WORD_BANK.length - 1)];
-    const eligible = pool.words.filter(w => w.length >= minLength);
+    let eligible = pool.words.filter(w => w.length >= minLength);
+    // A high minLength can leave some pools with fewer eligible words than
+    // wordsNeeded (PLANET and PICTURE only have one 6+ letter word each),
+    // which would make the room unsolvable for whichever pool gets picked.
+    // Fall back to the full word list whenever the filtered set is too small.
+    if (eligible.length < wordsNeeded) eligible = pool.words.slice();
     const tiles = prShuffle(pool.letters.split(''));
 
     return {
-      letters: pool.letters, tiles, eligible: eligible.length ? eligible : pool.words,
+      letters: pool.letters, tiles, eligible,
       wordsNeeded, found: [], current: [], score: 0,
     };
   },
