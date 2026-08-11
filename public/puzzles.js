@@ -25,6 +25,7 @@ const PUZZLE_HINTS = {
   rotatingLock: 'Rotate each dial until it lines up with its mark.',
   wireConnect: 'Connect matching colors without crossing paths.',
   weightBalance: 'Select objects that add up to the exact target.',
+  wordForge: 'Tap letters to spell real words. Longer is better.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -495,6 +496,141 @@ const WeightBalance = {
   },
 };
 
+/* ===========================================================================
+   7. WORD FORGE
+   A rack of scrambled letters. Tap tiles in order to spell a real word,
+   submit it, repeat until you've found enough words (longer words count
+   for more, and higher difficulty demands longer ones). Every word in
+   WORD_BANK below is a real English word, hand-checked to actually be
+   buildable from its own letter pool - see the verification notes in the
+   commit that added this.
+=========================================================================== */
+const WORD_BANK = [
+  { letters: 'TRIPES', words: ['SPRITE', 'PRIEST', 'STRIP', 'TIES', 'RITE', 'TIRE', 'TRIP', 'RIPE', 'PEST', 'SITE', 'REST'] },
+  { letters: 'GARDEN', words: ['GARDEN', 'DANGER', 'RANGE', 'ANGER', 'GRAND', 'READ', 'DARE', 'GEAR', 'NEAR', 'EARN'] },
+  { letters: 'PLANET', words: ['PLANET', 'PLATE', 'PANEL', 'PANE', 'PLAN', 'TAPE', 'LATE', 'LEAP'] },
+  { letters: 'STREAM', words: ['STREAM', 'MASTER', 'STARE', 'RATES', 'TEARS', 'TEAM', 'MATE', 'SEAT', 'MEAT', 'ARTS'] },
+  { letters: 'CANDLE', words: ['CANDLE', 'LANCED', 'CLEAN', 'DANCE', 'LEAD', 'LANE', 'CANE', 'LACE', 'DEAL'] },
+  { letters: 'PICTURE', words: ['PICTURE', 'TRUCE', 'ERUPT', 'PRICE', 'TRIPE', 'CURT', 'CUTE', 'TRIP', 'PIE'] },
+  { letters: 'MONSTER', words: ['MENTORS', 'MONSTER', 'NOTES', 'STERN', 'TERMS', 'STONE', 'TONES', 'STORM', 'TONE', 'NEST', 'MORE', 'REST'] },
+  { letters: 'STAPLER', words: ['STAPLER', 'PLASTER', 'PLATES', 'PEARLS', 'PETALS', 'STARE', 'PLATE', 'TALES', 'LEAST', 'STEAL', 'PEARL', 'PETAL', 'REAL', 'SEAT', 'LATE', 'RATE', 'TEAR'] },
+];
+
+const WordForge = {
+  generate(params) {
+    const wordsNeeded = params.wordsNeeded || 3;
+    const minLength = params.minLength || 3;
+
+    const pool = WORD_BANK[prRandomInt(0, WORD_BANK.length - 1)];
+    const eligible = pool.words.filter(w => w.length >= minLength);
+    const tiles = prShuffle(pool.letters.split(''));
+
+    return {
+      letters: pool.letters, tiles, eligible: eligible.length ? eligible : pool.words,
+      wordsNeeded, found: [], current: [], score: 0,
+    };
+  },
+  mount(state, container, onSolved) {
+    container.innerHTML = '';
+    const wrap = prMakeEl('div', 'wf-wrap');
+
+    const progress = prMakeEl('div', 'wf-progress');
+    progress.textContent = `Words found: 0 / ${state.wordsNeeded}`;
+    wrap.appendChild(progress);
+
+    const spelled = prMakeEl('div', 'wf-spelled');
+    wrap.appendChild(spelled);
+
+    const rack = prMakeEl('div', 'wf-rack');
+    wrap.appendChild(rack);
+
+    const foundList = prMakeEl('div', 'wf-found');
+    wrap.appendChild(foundList);
+
+    const actions = prMakeEl('div', 'wf-actions');
+    const clearBtn = prMakeEl('button', 'wf-btn wf-clear');
+    clearBtn.type = 'button';
+    clearBtn.textContent = 'Clear';
+    const submitBtn = prMakeEl('button', 'wf-btn wf-submit');
+    submitBtn.type = 'button';
+    submitBtn.textContent = 'Submit';
+    actions.appendChild(clearBtn);
+    actions.appendChild(submitBtn);
+    wrap.appendChild(actions);
+
+    container.appendChild(wrap);
+
+    const tileEls = state.tiles.map((letter, i) => {
+      const tile = prMakeEl('button', 'wf-tile');
+      tile.type = 'button';
+      tile.textContent = letter;
+      tile.dataset.index = i;
+      tile.addEventListener('click', () => {
+        if (tile.classList.contains('used')) return;
+        SFX.click();
+        tile.classList.add('used');
+        state.current.push({ letter, index: i });
+        renderSpelled();
+      });
+      rack.appendChild(tile);
+      return tile;
+    });
+
+    function renderSpelled() {
+      spelled.textContent = state.current.map(c => c.letter).join('') || '\u00A0';
+    }
+
+    function resetCurrent() {
+      state.current.forEach(c => tileEls[c.index].classList.remove('used'));
+      state.current = [];
+      renderSpelled();
+    }
+
+    clearBtn.addEventListener('click', () => { SFX.click(); resetCurrent(); });
+
+    submitBtn.addEventListener('click', () => {
+      const word = state.current.map(c => c.letter).join('');
+      const isValid = word.length >= 3 && state.eligible.includes(word);
+      const alreadyFound = state.found.includes(word);
+
+      if (!isValid || alreadyFound) {
+        SFX.wrong();
+        spelled.classList.add('wf-shake');
+        setTimeout(() => spelled.classList.remove('wf-shake'), 300);
+        resetCurrent();
+        return;
+      }
+
+      SFX.correct();
+      state.found.push(word);
+      state.score += word.length;
+
+      // Briefly flash the used tiles green, then free them for the next word.
+      // The rack is a reusable set of letters, not a one-shot pool - a 6-letter
+      // rack could never fit multiple 5+ letter words otherwise.
+      const solvedIndices = state.current.map(c => c.index);
+      solvedIndices.forEach(i => tileEls[i].classList.add('locked'));
+      state.current = [];
+      renderSpelled();
+      setTimeout(() => {
+        solvedIndices.forEach(i => tileEls[i].classList.remove('used', 'locked'));
+      }, 260);
+
+      const chip = prMakeEl('span', 'wf-found-word');
+      chip.textContent = word;
+      foundList.appendChild(chip);
+      progress.textContent = `Words found: ${state.found.length} / ${state.wordsNeeded}`;
+
+      if (state.found.length >= state.wordsNeeded) {
+        progress.classList.add('wf-complete');
+        setTimeout(onSolved, 320);
+      }
+    });
+
+    return function destroy() {};
+  },
+};
+
 const PUZZLE_MODULES = {
   patternCompletion: PatternCompletion,
   hiddenKey: HiddenKey,
@@ -502,6 +638,7 @@ const PUZZLE_MODULES = {
   rotatingLock: RotatingLock,
   wireConnect: WireConnect,
   weightBalance: WeightBalance,
+  wordForge: WordForge,
 };
 
 const Puzzles = {

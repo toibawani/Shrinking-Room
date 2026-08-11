@@ -336,6 +336,41 @@ button { font-family: inherit; }
 .wb-chip:disabled { cursor: default; }
 .wb-chip.selected { background: var(--accent); color: #2a0518; box-shadow: 0 0 16px var(--accent-glow); transform: translateY(-2px); }
 
+.wf-wrap { width: 94%; height: 94%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3%; }
+.wf-progress { font-family: var(--font-display); font-size: 0.95rem; color: var(--text-dim); }
+.wf-progress.wf-complete { color: var(--success); }
+.wf-spelled {
+  font-family: var(--font-mono); font-size: clamp(1.1rem, 5vw, 1.5rem); font-weight: 700;
+  letter-spacing: 3px; min-height: 1.6em; color: var(--volt);
+  border-bottom: 2px solid var(--panel-border); padding: 0 10px 4px;
+}
+.wf-spelled.wf-shake { animation: wfShake 0.3s ease; border-color: var(--danger); }
+@keyframes wfShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.wf-rack { display: flex; flex-wrap: wrap; gap: 3%; justify-content: center; }
+.wf-tile {
+  width: min(13%, 48px); aspect-ratio: 1; border-radius: var(--radius-sm);
+  background: var(--bg-panel); border: 2px solid var(--panel-border); color: var(--text-bright);
+  font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; cursor: pointer;
+  transition: background 0.12s ease, transform 0.1s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+}
+.wf-tile:disabled { cursor: default; }
+.wf-tile.used { background: var(--accent); color: #2a0518; transform: translateY(-3px); box-shadow: 0 0 14px var(--accent-glow); }
+.wf-tile.locked { background: var(--success); color: #062824; box-shadow: 0 0 14px var(--success-glow); transition: background 0.2s ease, box-shadow 0.2s ease; }
+.wf-found { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; min-height: 1.6em; }
+.wf-found-word {
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--success);
+  background: rgba(53, 230, 200, 0.12); border-radius: 999px; padding: 3px 10px;
+}
+.wf-actions { display: flex; gap: 10px; }
+.wf-btn {
+  font-family: var(--font-display); font-weight: 600; font-size: 0.85rem;
+  padding: 8px 18px; border-radius: 999px; border: none; cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); transition: transform 0.1s ease;
+}
+.wf-btn:active { transform: translateY(2px); box-shadow: none; }
+.wf-clear { background: var(--bg-panel-raised); color: var(--text-bright); }
+.wf-submit { background: var(--accent); color: #2a0518; }
+
 /* ---------------- Small screens ---------------- */
 @media (max-width: 480px) {
   .menu-buttons { width: 88vw; }
