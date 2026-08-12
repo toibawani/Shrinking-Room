@@ -221,11 +221,25 @@ function mountCurrentPuzzle() {
   $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type) + multiTag;
 }
 
+function fireSolveFlash(color, big) {
+  const flash = $('solve-flash');
+  flash.style.setProperty('--flash-color', color);
+  flash.classList.remove('firing');
+  void flash.offsetWidth; // restart the animation even if it's still fading from a moment ago
+  flash.classList.add('firing');
+  const frame = $('stage-frame');
+  frame.classList.remove('solved-kick');
+  void frame.offsetWidth;
+  frame.classList.add('solved-kick');
+  spawnBurstParticles(300, 300, color, big ? 60 : 34);
+}
+
 function handlePuzzleSolved() {
   SFX.solved();
-  spawnBurstParticles(300, 300, getCSSVar('--success') || '#35e6c8', 34);
-  GameState.puzzleIndexInLevel++;
   const level = getCurrentLevelData();
+  const isLastPuzzleInLevel = GameState.puzzleIndexInLevel + 1 >= level.puzzles.length;
+  fireSolveFlash(getCSSVar('--success') || '#00f0c0', isLastPuzzleInLevel);
+  GameState.puzzleIndexInLevel++;
   if (GameState.puzzleIndexInLevel < level.puzzles.length) {
     mountCurrentPuzzle();
   } else {

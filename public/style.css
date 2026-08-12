@@ -1,50 +1,50 @@
 /* =========================================================================
    Shrinking Room — stylesheet
-   Design direction: electric-arcade energy chamber, not grim bunker. A
-   saturated indigo base (not near-black) with four vivid accents that each
-   have one job — pink for action, yellow for urgency, cyan for success,
-   orange for danger. Every room gets its own color from LEVEL_COLORS
-   (see game.js), so level select and gameplay both feel genuinely varied.
+   Design direction: same electric-arcade identity as before, pushed
+   further — deeper void for real contrast, sharper/more saturated
+   accents, a bolder display face (Unbounded) that reads more like an
+   arcade marquee than a friendly rounded UI face, and a proper signature
+   moment on solving a puzzle instead of a small particle puff.
    All JS-toggled class names (.active, .locked, .critical, .warning,
    .correct-flash, .sm-node etc.) are unchanged — only their look changes.
 ========================================================================= */
 
 :root {
-  --bg-deep: #1a1035;
-  --bg-panel: #2b1a52;
-  --bg-panel-raised: #3a2568;
-  --bg-floor: #170c30;
-  --panel-border: rgba(245, 240, 255, 0.14);
+  --bg-deep: #12081f;
+  --bg-panel: #241340;
+  --bg-panel-raised: #3d1f6b;
+  --bg-floor: #0d0617;
+  --panel-border: rgba(253, 247, 255, 0.14);
 
-  --text-bright: #f5f0ff;
-  --text-dim: #b7a8e0;
+  --text-bright: #fdf7ff;
+  --text-dim: #b7a3dd;
 
-  --accent: #ff3d81;
-  --accent-soft: rgba(255, 61, 129, 0.18);
-  --accent-glow: rgba(255, 61, 129, 0.6);
+  --accent: #ff2e88;
+  --accent-soft: rgba(255, 46, 136, 0.18);
+  --accent-glow: rgba(255, 46, 136, 0.65);
 
-  --volt: #ffe14d;
-  --volt-glow: rgba(255, 225, 77, 0.6);
+  --volt: #eeff3d;
+  --volt-glow: rgba(238, 255, 61, 0.65);
 
-  --danger: #ff7a3d;
-  --danger-soft: rgba(255, 122, 61, 0.18);
-  --danger-glow: rgba(255, 122, 61, 0.65);
+  --danger: #ff5a1f;
+  --danger-soft: rgba(255, 90, 31, 0.18);
+  --danger-glow: rgba(255, 90, 31, 0.7);
 
-  --success: #35e6c8;
-  --success-glow: rgba(53, 230, 200, 0.6);
+  --success: #00f0c0;
+  --success-glow: rgba(0, 240, 192, 0.65);
 
-  --font-display: 'Fredoka', sans-serif;
+  --font-display: 'Unbounded', sans-serif;
   --font-body: 'Manrope', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  --font-mono: 'JetBrains Mono', monospace;
 
   --radius-md: 16px;
   --radius-sm: 10px;
 }
 
 /* Alternate hazard-classification themes, unlocked by streaks */
-body[data-theme="cyan"]    { --accent: #35e6c8; --accent-soft: rgba(53, 230, 200, 0.18);  --accent-glow: rgba(53, 230, 200, 0.6); }
-body[data-theme="violet"]  { --accent: #a06bff; --accent-soft: rgba(160, 107, 255, 0.18); --accent-glow: rgba(160, 107, 255, 0.6); }
-body[data-theme="emerald"] { --accent: #7dff8c; --accent-soft: rgba(125, 255, 140, 0.18); --accent-glow: rgba(125, 255, 140, 0.6); }
+body[data-theme="cyan"]    { --accent: #00f0c0; --accent-soft: rgba(0, 240, 192, 0.18);  --accent-glow: rgba(0, 240, 192, 0.65); }
+body[data-theme="violet"]  { --accent: #a855ff; --accent-soft: rgba(168, 85, 255, 0.18); --accent-glow: rgba(168, 85, 255, 0.65); }
+body[data-theme="emerald"] { --accent: #6dff7f; --accent-soft: rgba(109, 255, 127, 0.18); --accent-glow: rgba(109, 255, 127, 0.65); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -52,8 +52,8 @@ html, body { height: 100%; }
 body {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse 1000px 600px at 20% -10%, rgba(255, 61, 129, 0.16) 0%, transparent 55%),
-    radial-gradient(ellipse 900px 700px at 100% 10%, rgba(53, 230, 200, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 1000px 600px at 20% -10%, rgba(255, 46, 136, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 900px 700px at 100% 10%, rgba(0, 240, 192, 0.13) 0%, transparent 55%),
     var(--bg-deep);
   color: var(--text-bright);
   font-family: var(--font-body);
@@ -233,6 +233,25 @@ button { font-family: inherit; }
 .hud-pause:active { transform: translateY(2px); box-shadow: none; }
 
 /* ---------------- Stage ---------------- */
+/* ---------------- Solve flash (signature moment) ---------------- */
+#solve-flash {
+  position: fixed; inset: 0; z-index: 200; pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, var(--flash-color, var(--success)) 0%, transparent 65%);
+  opacity: 0;
+}
+#solve-flash.firing { animation: solveFlash 0.55s cubic-bezier(0.15, 0.9, 0.3, 1) both; }
+@keyframes solveFlash {
+  0%   { opacity: 0; }
+  12%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.stage-frame.solved-kick { animation: stageSolvedKick 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+@keyframes stageSolvedKick {
+  0%   { filter: brightness(1); }
+  30%  { filter: brightness(1.6); }
+  100% { filter: brightness(1); }
+}
+
 .stage-frame { width: 600px; height: 600px; margin: 0 auto; position: relative; transform-origin: top center; border-radius: 24px; }
 .stage-frame::after {
   content: ''; position: absolute; inset: -6px; border-radius: 28px; pointer-events: none; opacity: 0;
