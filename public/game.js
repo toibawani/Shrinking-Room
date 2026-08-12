@@ -313,6 +313,20 @@ function updateGameplay(dt) {
   $('hud-timer').textContent = formatTime(timeRemaining);
   $('hud-timer').classList.toggle('critical', timeRemaining <= 5);
 
+  // Check the notch trigger before the game-over check. The last notch's
+  // trigger time and the time limit land on the same instant by
+  // construction (notchInterval * shrinkNotches === effectiveLimit), so
+  // whichever check ran first used to silently win - meaning the final
+  // wall-shrink beat (shake + sound) never played, since game-over
+  // returned early before the notch code ever ran. Now the room still
+  // gets its last visible lurch even on the exact frame it runs out.
+  const notchInterval = effectiveLimit / level.shrinkNotches;
+  const notchesElapsed = Math.floor(GameState.elapsed / notchInterval);
+  if (notchesElapsed > GameState.currentNotch) {
+    GameState.currentNotch = notchesElapsed;
+    triggerWallShrink(notchesElapsed, level);
+  }
+
   if (timeRemaining <= 0) {
     GameState.isPlaying = false;
     GameState.combo = 0;
@@ -324,13 +338,6 @@ function updateGameplay(dt) {
   }
 
   SFX.updateBackground(1 - timeRemaining / effectiveLimit);
-
-  const notchInterval = effectiveLimit / level.shrinkNotches;
-  const notchesElapsed = Math.floor(GameState.elapsed / notchInterval);
-  if (notchesElapsed > GameState.currentNotch) {
-    GameState.currentNotch = notchesElapsed;
-    triggerWallShrink(notchesElapsed, level);
-  }
 }
 
 function positionPuzzleLayer() {
