@@ -19,13 +19,13 @@ function prMakeEl(tag, className) {
 }
 
 const PUZZLE_HINTS = {
+  wordForge: 'Tap letters to spell real words. Longer is better.',
   patternCompletion: 'Pick the tile that continues the pattern.',
   hiddenKey: 'One of these is not quite like the others.',
   symbolMemory: 'Watch the sequence, then repeat it in order.',
   rotatingLock: 'Rotate each dial until it lines up with its mark.',
   wireConnect: 'Connect matching colors without crossing paths.',
   weightBalance: 'Select objects that add up to the exact target.',
-  wordForge: 'Tap letters to spell real words. Longer is better.',
 };
 
 /* ---- Pattern Completion ---- */
@@ -288,18 +288,6 @@ const RotatingLock = {
 /* ---- Wire / Pipe Connect ---- */
 const WC_PAIR_COLORS = ['#ffb454', '#4dd8ff', '#ff6b9d', '#8aff6b'];
 
-// Carves a short random walk through cells not already claimed by an
-// earlier pair. The whole walk (not just its two endpoints) is reserved,
-// so every pair keeps a guaranteed obstacle-free route for the entire
-// game, no matter what order the player solves them in.
-//
-// Previously endpoints were placed by picking two random free cells per
-// pair. That could box a pair in completely: since solved endpoints stay
-// on the board as permanent obstacles, a pair could end up with zero
-// valid paths depending on where the other pairs landed, making the
-// room unsolvable. Testing caught this by simulating solves across many
-// random layouts (see the wire-connect trials in the project's own test
-// notes) -- some fraction of generated 4x4/2-pair rooms had no solution.
 function wcCarvePath(gridSize, occupied) {
   const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   const isFree = (r, c) => r >= 0 && c >= 0 && r < gridSize && c < gridSize && !occupied.has(r + ',' + c);
@@ -336,7 +324,7 @@ const WireConnect = {
 
     for (let p = 0; p < requestedPairs; p++) {
       const path = wcCarvePath(gridSize, occupied);
-      if (!path) break; // grid is full; stop rather than place an unsolvable pair
+      if (!path) break;
       path.forEach(([r, c]) => occupied.add(r + ',' + c));
       const a = path[0];
       const b = path[path.length - 1];
@@ -498,12 +486,6 @@ const WeightBalance = {
 
 /* ===========================================================================
    7. WORD FORGE
-   A rack of scrambled letters. Tap tiles in order to spell a real word,
-   submit it, repeat until you've found enough words (longer words count
-   for more, and higher difficulty demands longer ones). Every word in
-   WORD_BANK below is a real English word, hand-checked to actually be
-   buildable from its own letter pool - see the verification notes in the
-   commit that added this.
 =========================================================================== */
 const WORD_BANK = [
   { letters: 'TRIPES', words: ['SPRITE', 'PRIEST', 'STRIP', 'TIES', 'RITE', 'TIRE', 'TRIP', 'RIPE', 'PEST', 'SITE', 'REST'] },
@@ -523,10 +505,6 @@ const WordForge = {
 
     const pool = WORD_BANK[prRandomInt(0, WORD_BANK.length - 1)];
     let eligible = pool.words.filter(w => w.length >= minLength);
-    // A high minLength can leave some pools with fewer eligible words than
-    // wordsNeeded (PLANET and PICTURE only have one 6+ letter word each),
-    // which would make the room unsolvable for whichever pool gets picked.
-    // Fall back to the full word list whenever the filtered set is too small.
     if (eligible.length < wordsNeeded) eligible = pool.words.slice();
     const tiles = prShuffle(pool.letters.split(''));
 
@@ -610,9 +588,6 @@ const WordForge = {
       state.found.push(word);
       state.score += word.length;
 
-      // Briefly flash the used tiles green, then free them for the next word.
-      // The rack is a reusable set of letters, not a one-shot pool - a 6-letter
-      // rack could never fit multiple 5+ letter words otherwise.
       const solvedIndices = state.current.map(c => c.index);
       solvedIndices.forEach(i => tileEls[i].classList.add('locked'));
       state.current = [];
@@ -637,13 +612,13 @@ const WordForge = {
 };
 
 const PUZZLE_MODULES = {
+  wordForge: WordForge,
   patternCompletion: PatternCompletion,
   hiddenKey: HiddenKey,
   symbolMemory: SymbolMemory,
   rotatingLock: RotatingLock,
   wireConnect: WireConnect,
   weightBalance: WeightBalance,
-  wordForge: WordForge,
 };
 
 const Puzzles = {
