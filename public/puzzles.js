@@ -531,12 +531,16 @@ const WordForge = {
     wrap.appendChild(foundList);
 
     const actions = prMakeEl('div', 'wf-actions');
+    const undoBtn = prMakeEl('button', 'wf-btn wf-undo');
+    undoBtn.type = 'button';
+    undoBtn.textContent = 'Undo';
     const clearBtn = prMakeEl('button', 'wf-btn wf-clear');
     clearBtn.type = 'button';
     clearBtn.textContent = 'Clear';
     const submitBtn = prMakeEl('button', 'wf-btn wf-submit');
     submitBtn.type = 'button';
     submitBtn.textContent = 'Submit';
+    actions.appendChild(undoBtn);
     actions.appendChild(clearBtn);
     actions.appendChild(submitBtn);
     wrap.appendChild(actions);
@@ -568,10 +572,17 @@ const WordForge = {
       state.current = [];
       renderSpelled();
     }
+    function undoLastTile() {
+      const last = state.current.pop();
+      if (!last) return;
+      tileEls[last.index].classList.remove('used');
+      renderSpelled();
+    }
 
     clearBtn.addEventListener('click', () => { SFX.click(); resetCurrent(); });
+    undoBtn.addEventListener('click', () => { SFX.click(); undoLastTile(); });
 
-    submitBtn.addEventListener('click', () => {
+    function submitWord() {
       const word = state.current.map(c => c.letter).join('');
       const isValid = word.length >= 3 && state.eligible.includes(word);
       const alreadyFound = state.found.includes(word);
@@ -605,9 +616,16 @@ const WordForge = {
         progress.classList.add('wf-complete');
         setTimeout(onSolved, 320);
       }
-    });
+    }
+    submitBtn.addEventListener('click', submitWord);
 
-    return function destroy() {};
+    return {
+      destroy() {},
+      onKey(key) {
+        if (key === 'Enter') submitWord();
+        else if (key === 'Backspace') { SFX.click(); undoLastTile(); }
+      },
+    };
   },
 };
 
@@ -626,8 +644,9 @@ const Puzzles = {
     const mod = PUZZLE_MODULES[type];
     if (!mod) { console.error('Unknown puzzle type:', type); return { destroy() {} }; }
     const state = mod.generate(params || {});
-    const destroy = mod.mount(state, container, onSolved) || function () {};
-    return { destroy, state };
+    const result = mod.mount(state, container, onSolved) || function () {};
+    if (typeof result === 'function') return { destroy: result, state, onKey: null };
+    return { destroy: result.destroy || function () {}, state, onKey: result.onKey || null };
   },
   hint(type) { return PUZZLE_HINTS[type] || ''; },
 };
