@@ -36,7 +36,7 @@ const GameState = {
 function $(id) { return document.getElementById(id); }
 
 function defaultPersisted() {
-  return { bestTimes: {}, unlockedLevel: 1, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, difficulty: 'normal', stats: { puzzlesSolved: 0, roomsCleared: 0, bestStreak: 0 } };
+  return { bestTimes: {}, unlockedLevel: 1, unlockedThemes: ['amber'], currentTheme: 'amber', hasSeenTutorial: false, soundOn: true, motionReduced: false, difficulty: 'normal', stats: { puzzlesSolved: 0, roomsCleared: 0, bestStreak: 0 } };
 }
 let persisted = defaultPersisted();
 
@@ -64,6 +64,13 @@ async function signUp(username, password) {
 }
 async function signIn(username, password) {
   return apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+}
+async function resetProgress() {
+  if (!confirm('Reset all room progress? Your settings stay the same.')) return;
+  await apiFetch('/api/progress/reset', { method: 'POST' });
+  persisted = await fetchProgress();
+  renderLevelGrid();
+  renderMenuProgress();
 }
 async function logOut() {
   await apiFetch('/api/auth/logout', { method: 'POST' });
@@ -136,7 +143,7 @@ function bindEvents() {
     startLevel(idx);
   });
   $('btn-level-select').addEventListener('click', () => { renderLevelGrid(); switchBaseScreen('screen-level-select'); });
-  $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); syncDifficultyButtons(); syncSoundButtons(); switchBaseScreen('screen-settings'); });
+  $('btn-settings').addEventListener('click', () => { renderThemeSwatches(); syncDifficultyButtons(); syncSoundButtons(); syncMotionButtons(); switchBaseScreen('screen-settings'); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
 
@@ -183,6 +190,9 @@ function bindEvents() {
   document.querySelectorAll('.diff-btn[data-sound]').forEach(btn => {
     btn.addEventListener('click', () => setSound(btn.dataset.sound === 'on'));
   });
+  document.querySelectorAll('.diff-btn[data-motion]').forEach(btn => {
+    btn.addEventListener('click', () => setMotionReduced(btn.dataset.motion === 'reduced'));
+  });
   document.querySelectorAll('.diff-btn[data-difficulty]').forEach(btn => {
     btn.addEventListener('click', () => {
       persisted.difficulty = btn.dataset.difficulty;
@@ -192,6 +202,7 @@ function bindEvents() {
     });
   });
   $('btn-logout').addEventListener('click', () => logOut());
+  $('btn-reset-progress').addEventListener('click', () => resetProgress());
 }
 
 function startLevel(index) {
@@ -202,6 +213,10 @@ function startLevel(index) {
   GameState.displayedRoomSize = level.initialRoomSize;
   GameState.targetRoomSize = level.initialRoomSize;
   $('hud-level').textContent = level.id;
+  $('hud-chapter').textContent = getLevelChapter(level).name;
+  $('stage-objective').textContent = level.subtitle || '';
+  $('compression-fill').style.width = '0%';
+  $('compression-fill').classList.remove('critical');
   const best = persisted.bestTimes[level.id];
   $('hud-best').textContent = best !== undefined ? best.toFixed(1) + 's' : '--';
   switchBaseScreen('screen-game');
@@ -274,10 +289,12 @@ function handleLevelComplete() {
 }
 
 function triggerWallShrink(notchIndex, level) {
-  const shrinkPerNotch = (level.initialRoomSize - level.crushRoomSize) / level.shrinkNotches;
-  GameState.targetRoomSize = Math.max(level.crushRoomSize, level.initialRoomSize - shrinkPerNotch * notchIndex);
-  SFX.shrink();
-  shakeScreen(300, 8);
+  if (!persisted.motionReduced) {
+    const shrinkPerNotch = (level.initialRoomSize - level.crushRoomSize) / level.shrinkNotches;
+    GameState.targetRoomSize = Math.max(level.crushRoomSize, level.initialRoomSize - shrinkPerNotch * notchIndex);
+    SFX.shrink();
+    shakeScreen(300, 8);
+  }
 }
 
 function shakeScreen(duration, intensity) {
@@ -296,6 +313,7 @@ function updateShakeState(dt) {
 }
 
 function spawnBurstParticles(x, y, color, count) {
+  if (persisted.motionReduced) return;
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 80 + Math.random() * 220;
@@ -303,6 +321,7 @@ function spawnBurstParticles(x, y, color, count) {
   }
 }
 function updateParticles(dt) {
+  if (persisted.motionReduced) { GameState.particles = []; return; }
   GameState.particles.forEach(p => { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; });
   GameState.particles = GameState.particles.filter(p => p.age < p.life);
 }
@@ -327,13 +346,6 @@ function updateGameplay(dt) {
   $('hud-timer').textContent = formatTime(timeRemaining);
   $('hud-timer').classList.toggle('critical', timeRemaining <= 5);
 
-  // Check the notch trigger before the game-over check. The last notch's
-  // trigger time and the time limit land on the same instant by
-  // construction (notchInterval * shrinkNotches === effectiveLimit), so
-  // whichever check ran first used to silently win - meaning the final
-  // wall-shrink beat (shake + sound) never played, since game-over
-  // returned early before the notch code ever ran. Now the room still
-  // gets its last visible lurch even on the exact frame it runs out.
   const notchInterval = effectiveLimit / level.shrinkNotches;
   const notchesElapsed = Math.floor(GameState.elapsed / notchInterval);
   if (notchesElapsed > GameState.currentNotch) {
@@ -387,7 +399,7 @@ function renderCanvas() {
   ctx.fillRect(0, 0, W, H);
 
   const activeWarning = GameState.isWarning && GameState.isPlaying;
-  if (activeWarning) {
+  if (activeWarning && !persisted.motionReduced) {
     ctx.save();
     ctx.globalAlpha = 0.12 + 0.07 * Math.sin(GameState.elapsed * 14);
     ctx.fillStyle = getCSSVar('--danger') || '#ff7a3d';
@@ -423,12 +435,27 @@ function gameLoopTick(timestamp) {
 
   if (GameState.isPlaying && !GameState.isPaused) updateGameplay(dt);
   GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+  updateCompressionBar();
   updateParticles(dt);
   updateShakeState(dt);
   positionPuzzleLayer();
   renderCanvas();
 
   requestAnimationFrame(gameLoopTick);
+}
+
+function updateCompressionBar() {
+  if (GameState.baseScreen !== 'screen-game') return;
+  const level = getCurrentLevelData();
+  if (!level) return;
+  const span = level.initialRoomSize - level.crushRoomSize;
+  const shrunk = level.initialRoomSize - GameState.displayedRoomSize;
+  const pct = span > 0 ? Math.max(0, Math.min(100, (shrunk / span) * 100)) : 0;
+  const fill = $('compression-fill');
+  if (fill) {
+    fill.style.width = pct + '%';
+    fill.classList.toggle('critical', pct >= 70);
+  }
 }
 
 function switchAuthTab(tab) {
@@ -447,6 +474,7 @@ async function afterAuthSuccess(username) {
   SFX.setMuted(!persisted.soundOn);
   syncDifficultyButtons();
   syncSoundButtons();
+  syncMotionButtons();
   renderThemeSwatches();
   renderLevelGrid();
   $('menu-player-tag').textContent = username.toUpperCase();
@@ -500,11 +528,21 @@ function syncSoundButtons() {
   });
   $('btn-sound-toggle').textContent = persisted.soundOn ? '🔊' : '🔇';
 }
+function syncMotionButtons() {
+  document.querySelectorAll('.diff-btn[data-motion]').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.motion === 'reduced') === persisted.motionReduced);
+  });
+}
 function setSound(on) {
   persisted.soundOn = on;
   SFX.setMuted(!on);
   savePersisted();
   syncSoundButtons();
+}
+function setMotionReduced(reduced) {
+  persisted.motionReduced = reduced;
+  savePersisted();
+  syncMotionButtons();
 }
 
 async function initGame() {
