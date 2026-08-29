@@ -268,7 +268,7 @@ const RotatingLock = {
         dialEls[i].classList.toggle('solved', ok);
         if (!ok) solved = false;
       }
-      if (solved) setTimeout(onSolved, 260);
+      if (solved) { SFX.correct(); setTimeout(onSolved, 280); }
     }
 
     function rotateDial(i) {
@@ -281,7 +281,7 @@ const RotatingLock = {
       }
       checkWin();
     }
-    return function destroy() {};
+    return function destroy() { dialEls.length = 0; };
   },
 };
 
