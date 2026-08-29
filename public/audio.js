@@ -1,19 +1,11 @@
-// audio.js
-// ---------------------------------------------------------------------------
-// Tiny synthesized sound engine. No audio files to host — every effect is a
-// short oscillator envelope generated on the fly with the Web Audio API.
-// Browsers block audio until a user gesture, so call SFX.unlock() from the
-// very first click/tap of a session (game.js does this on the landing screen).
-// ---------------------------------------------------------------------------
+// audio.js — Synthesized sound engine (Web Audio API, no asset files).
 
 const SFX = (function () {
   let ctx = null;
   let muted = false;
+  let bgPaused = false;
+  let savedBgGain = 0.05;
 
-  // Adaptive background layer: two detuned low oscillators (a drone) plus a
-  // soft pulse whose speed and pitch both climb as a room's time runs out,
-  // so the tension is audible even with your eyes on the puzzle, not the
-  // clock. progress is 0 (room just started) to 1 (about to be crushed).
   const bg = { osc1: null, osc2: null, pulseOsc: null, gain: null, pulseGain: null, lfo: null, progress: 0, running: false };
 
   function ensureCtx() {
@@ -46,18 +38,15 @@ const SFX = (function () {
 
   function applyBgVolume() {
     if (!bg.gain) return;
-    const targetGain = muted ? 0 : 0.05 + bg.progress * 0.05;
-    bg.gain.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.3);
+    const targetGain = muted || bgPaused ? 0 : savedBgGain;
+    bg.gain.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.25);
   }
 
-  // Call once when a room starts. Builds a quiet, continuous low drone that
-  // gets louder, higher, and pulses faster as updateBackground(progress)
-  // moves toward 1. Safe to call again without a matching stop — it tears
-  // down any previous layer first.
   function startBackground() {
     const c = ensureCtx();
     if (!c) return;
     stopBackground();
+    bgPaused = false;
 
     const gain = c.createGain();
     gain.gain.value = muted ? 0 : 0.05;
@@ -65,21 +54,21 @@ const SFX = (function () {
 
     const osc1 = c.createOscillator();
     osc1.type = 'sine';
-    osc1.frequency.value = 55;
+    osc1.frequency.value = 52;
     const osc2 = c.createOscillator();
     osc2.type = 'sine';
-    osc2.frequency.value = 55 * 1.5; // a fifth above, keeps the drone from feeling flat
+    osc2.frequency.value = 78;
 
     const pulseGain = c.createGain();
     pulseGain.gain.value = 0;
     const pulseOsc = c.createOscillator();
     pulseOsc.type = 'sine';
-    pulseOsc.frequency.value = 110;
+    pulseOsc.frequency.value = 104;
     const lfo = c.createOscillator();
     lfo.type = 'sine';
-    lfo.frequency.value = 0.6; // slow heartbeat at the start of a room
+    lfo.frequency.value = 0.5;
     const lfoGain = c.createGain();
-    lfoGain.gain.value = 0.04;
+    lfoGain.gain.value = 0.035;
     lfo.connect(lfoGain);
     lfoGain.connect(pulseGain.gain);
 
@@ -94,20 +83,34 @@ const SFX = (function () {
     bg.gain = gain; bg.pulseGain = pulseGain;
     bg.progress = 0;
     bg.running = true;
+    savedBgGain = 0.05;
   }
 
-  // Call every frame (or every wall-shrink notch) with progress in [0,1] —
-  // 0 right after a room starts, 1 as the timer approaches zero.
   function updateBackground(progress) {
     if (!bg.running || !ctx) return;
     bg.progress = Math.max(0, Math.min(1, progress));
     const t = ctx.currentTime;
     const p = bg.progress;
 
-    bg.osc1.frequency.linearRampToValueAtTime(55 + p * 40, t + 0.4);
-    bg.osc2.frequency.linearRampToValueAtTime((55 + p * 40) * 1.5, t + 0.4);
-    bg.pulseOsc.frequency.linearRampToValueAtTime(110 + p * 90, t + 0.4);
-    bg.lfo.frequency.linearRampToValueAtTime(0.6 + p * 2.4, t + 0.4); // heartbeat speeds up
+    bg.osc1.frequency.linearRampToValueAtTime(52 + p * 45, t + 0.4);
+    bg.osc2.frequency.linearRampToValueAtTime(78 + p * 55, t + 0.4);
+    bg.pulseOsc.frequency.linearRampToValueAtTime(104 + p * 80, t + 0.4);
+    bg.lfo.frequency.linearRampToValueAtTime(0.5 + p * 2.8, t + 0.4);
+    savedBgGain = 0.04 + p * 0.06;
+    if (!bgPaused && !muted) {
+      bg.gain.gain.linearRampToValueAtTime(savedBgGain, t + 0.3);
+    }
+  }
+
+  function pauseBackground() {
+    if (!bg.running) return;
+    bgPaused = true;
+    applyBgVolume();
+  }
+
+  function resumeBackground() {
+    if (!bg.running) return;
+    bgPaused = false;
     applyBgVolume();
   }
 
@@ -124,31 +127,32 @@ const SFX = (function () {
     bg.osc1 = bg.osc2 = bg.pulseOsc = bg.lfo = bg.gain = bg.pulseGain = null;
     bg.running = false;
     bg.progress = 0;
+    bgPaused = false;
   }
 
   return {
     unlock() { ensureCtx(); },
-    setMuted(v) { muted = !!v; if (bg.gain) applyBgVolume(); },
+    setMuted(v) { muted = !!v; applyBgVolume(); },
     isMuted() { return muted; },
 
-    click()    { tone({ freq: 520, duration: 0.045, type: 'square', gain: 0.05 }); },
-    uiToggle() { tone({ freq: 420, duration: 0.05, type: 'sine', gain: 0.07 }); },
-    correct()  { tone({ freq: 660, duration: 0.08, type: 'sine', gain: 0.11 }); tone({ freq: 880, duration: 0.09, delay: 0.055, type: 'sine', gain: 0.11 }); },
-    wrong()    { tone({ freq: 170, duration: 0.16, type: 'sawtooth', gain: 0.09, glide: 95 }); },
-    shrink()   { tone({ freq: 95, duration: 0.22, type: 'sine', gain: 0.17, glide: 55 }); },
-    warning()  { tone({ freq: 760, duration: 0.055, type: 'square', gain: 0.045 }); },
+    click()    { tone({ freq: 480, duration: 0.04, type: 'square', gain: 0.04 }); },
+    uiToggle() { tone({ freq: 400, duration: 0.05, type: 'sine', gain: 0.06 }); },
+    correct()  { tone({ freq: 620, duration: 0.07, type: 'sine', gain: 0.1 }); tone({ freq: 830, duration: 0.08, delay: 0.05, type: 'sine', gain: 0.1 }); },
+    wrong()    { tone({ freq: 160, duration: 0.14, type: 'sawtooth', gain: 0.08, glide: 90 }); },
+    shrink()   { tone({ freq: 88, duration: 0.2, type: 'sine', gain: 0.14, glide: 50 }); },
+    warning()  { tone({ freq: 720, duration: 0.05, type: 'square', gain: 0.04 }); },
 
     solved() {
-      [523, 659, 784, 1046].forEach((f, i) => tone({ freq: f, duration: 0.13, delay: i * 0.065, type: 'triangle', gain: 0.13 }));
+      [494, 622, 740, 988].forEach((f, i) => tone({ freq: f, duration: 0.12, delay: i * 0.06, type: 'triangle', gain: 0.11 }));
     },
     levelComplete() {
-      [523, 659, 784, 1046, 1318].forEach((f, i) => tone({ freq: f, duration: 0.15, delay: i * 0.075, type: 'sine', gain: 0.12 }));
+      [494, 622, 740, 988, 1175].forEach((f, i) => tone({ freq: f, duration: 0.14, delay: i * 0.07, type: 'sine', gain: 0.1 }));
     },
     gameOver() {
-      [300, 260, 200, 140].forEach((f, i) => tone({ freq: f, duration: 0.17, delay: i * 0.09, type: 'sawtooth', gain: 0.13 }));
+      [280, 240, 185, 130].forEach((f, i) => tone({ freq: f, duration: 0.16, delay: i * 0.085, type: 'sawtooth', gain: 0.11 }));
     },
 
-    startBackground, updateBackground, stopBackground,
+    startBackground, updateBackground, pauseBackground, resumeBackground, stopBackground,
   };
 })();
 

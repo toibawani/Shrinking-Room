@@ -18,6 +18,7 @@ function rowToProgress(row) {
         soundOn: !!row.sound_on,
     motionReduced: !!row.motion_reduced,
     hasSeenTutorial: !!row.has_seen_tutorial,
+    hasSeenIntro: !!row.has_seen_intro,
     stats: JSON.parse(row.stats),
   };
 }
@@ -33,7 +34,7 @@ router.put('/', requireAuth, (req, res) => {
   const stmt = db.prepare(`
     UPDATE progress SET
       best_times = ?, unlocked_level = ?, unlocked_themes = ?,
-           current_theme = ?, difficulty = ?, sound_on = ?, motion_reduced = ?, has_seen_tutorial = ?, stats = ?, updated_at = ?
+           current_theme = ?, difficulty = ?, sound_on = ?, motion_reduced = ?, has_seen_tutorial = ?, has_seen_intro = ?, stats = ?, updated_at = ?
     WHERE user_id = ?
   `);
   stmt.run(
@@ -42,9 +43,10 @@ router.put('/', requireAuth, (req, res) => {
     JSON.stringify(p.unlockedThemes || ['amber']),
     p.currentTheme || 'amber',
     p.difficulty || 'normal',
-       p.soundOn === false ? 0 : 1,
+    p.soundOn === false ? 0 : 1,
     p.motionReduced ? 1 : 0,
     p.hasSeenTutorial ? 1 : 0,
+    p.hasSeenIntro ? 1 : 0,
     JSON.stringify(p.stats || { puzzlesSolved: 0, roomsCleared: 0, bestStreak: 0 }),
     Date.now(),
     req.user.sub
