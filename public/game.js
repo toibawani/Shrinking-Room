@@ -581,10 +581,21 @@ function drawParticles(ctx) {
   });
 }
 
-function updateCompressionUI(progress) {
+function getRoomCompression(level) {
+  const range = level.initialRoomSize - level.crushRoomSize;
+  if (range <= 0) return 0;
+  return Math.min(1, Math.max(0, (level.initialRoomSize - GameState.displayedRoomSize) / range));
+}
+
+function updateCompressionUI(compression) {
   const fill = $('compression-fill');
-  fill.style.width = `${Math.min(100, progress * 100)}%`;
-  fill.classList.toggle('high', progress > 0.7);
+  fill.style.width = `${compression * 100}%`;
+  fill.classList.toggle('high', compression > 0.7);
+}
+
+function updateCompressionFromRoom() {
+  if (GameState.baseScreen !== 'screen-game') return;
+  updateCompressionUI(getRoomCompression(getCurrentLevelData()));
 }
 
 function updateGameplay(dt) {
@@ -596,7 +607,6 @@ function updateGameplay(dt) {
 
   $('hud-timer').textContent = formatTime(timeRemaining);
   $('hud-timer').classList.toggle('critical', timeRemaining <= WARNING_THRESHOLD);
-  updateCompressionUI(progress);
 
   const wasWarning = GameState.isWarning;
   GameState.isWarning = timeRemaining <= WARNING_THRESHOLD && timeRemaining > 0;
@@ -770,6 +780,7 @@ function gameLoopTick(timestamp) {
 
   if (GameState.isPlaying && !GameState.isPaused) updateGameplay(dt);
   GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+  updateCompressionFromRoom();
   updateParticles(dt);
   updateShakeState(dt);
   positionPuzzleLayer();
