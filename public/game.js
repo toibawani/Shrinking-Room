@@ -220,6 +220,8 @@ function destroyActivePuzzle() {
 function pauseGame() {
   if (!GameState.isPlaying || GameState.isPaused) return;
   GameState.isPaused = true;
+  GameState.shake = null;
+  $('stage-shake').style.transform = '';
   SFX.pauseBackground();
   const level = getCurrentLevelData();
   $('pause-room-num').textContent = level.id;
@@ -778,11 +780,13 @@ function gameLoopTick(timestamp) {
   GameState.lastTimestamp = timestamp;
   dt = Math.min(dt, 0.1);
 
-  if (GameState.isPlaying && !GameState.isPaused) updateGameplay(dt);
-  GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+  if (GameState.isPlaying && !GameState.isPaused) {
+    updateGameplay(dt);
+    GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+    updateShakeState(dt);
+  }
   updateCompressionFromRoom();
   updateParticles(dt);
-  updateShakeState(dt);
   positionPuzzleLayer();
   renderCanvas();
 
