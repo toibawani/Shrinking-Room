@@ -95,6 +95,25 @@ async function logOut() {
   switchBaseScreen('screen-landing');
 }
 
+async function resetProgress() {
+  if (!confirm('Reset all progress? Best times, unlocks, and stats will be lost.')) return;
+  const keep = {
+    soundOn: persisted.soundOn,
+    motionReduced: persisted.motionReduced,
+    difficulty: persisted.difficulty,
+    hasSeenTutorial: true,
+    hasSeenIntro: true,
+  };
+  await apiFetch('/api/progress/reset', { method: 'POST' });
+  persisted = Object.assign(defaultPersisted(), keep);
+  GameState.combo = 0;
+  savePersisted();
+  renderThemeSwatches();
+  renderLevelGrid();
+  updateMenuStats();
+  SFX.uiToggle();
+}
+
 function isMotionReduced() {
   return persisted.motionReduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -350,16 +369,7 @@ function bindEvents() {
   });
 
   $('btn-logout').addEventListener('click', () => logOut());
-  $('btn-reset-progress').addEventListener('click', () => {
-    if (!confirm('Reset all progress? Best times, unlocks, and stats will be lost.')) return;
-    const keep = { soundOn: persisted.soundOn, motionReduced: persisted.motionReduced, difficulty: persisted.difficulty, hasSeenTutorial: true, hasSeenIntro: true };
-    persisted = Object.assign(defaultPersisted(), keep);
-    GameState.combo = 0;
-    savePersisted();
-    renderThemeSwatches();
-    updateMenuStats();
-    SFX.uiToggle();
-  });
+  $('btn-reset-progress').addEventListener('click', () => resetProgress());
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
