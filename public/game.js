@@ -163,7 +163,15 @@ function showOverlay(id) { $(id).classList.add('active'); }
 function hideOverlay(id) { $(id).classList.remove('active'); }
 
 const LEVEL_ACCENTS = ['#e8457a', '#2ee8b6', '#d4e847', '#a070ff', '#ff7744', '#44c8ff', '#8aff6b', '#ff6688', '#5cffe0', '#ffcf5c', '#c080ff', '#6dff8a'];
-function levelAccent(levelId) { return LEVEL_ACCENTS[(levelId - 1) % LEVEL_ACCENTS.length]; }
+const LEVEL_ACCENT_TOKENS = ['--accent', '--success', '--volt'];
+function levelAccent(levelId) {
+  const idx = (levelId - 1) % LEVEL_ACCENTS.length;
+  if (idx < LEVEL_ACCENT_TOKENS.length) {
+    const v = getCSSVar(LEVEL_ACCENT_TOKENS[idx]);
+    if (v) return v;
+  }
+  return LEVEL_ACCENTS[idx];
+}
 
 function updateMenuStats() {
   const cleared = Object.keys(persisted.bestTimes).length;

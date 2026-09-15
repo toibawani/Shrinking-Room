@@ -306,8 +306,8 @@ button { font-family: inherit; cursor: pointer; }
   width: 44px; height: 44px; border-radius: 50%;
   border: 2px solid transparent; transition: transform var(--transition-fast), border-color var(--transition-fast);
 }
-.theme-swatch.theme-amber   { background: radial-gradient(circle at 35% 30%, #ffb0cd, #e8457a); }
-.theme-swatch.theme-cyan    { background: radial-gradient(circle at 35% 30%, #a6fff0, #2ee8b6); }
+.theme-swatch.theme-amber   { background: radial-gradient(circle at 35% 30%, #ffb0cd, var(--accent)); }
+.theme-swatch.theme-cyan    { background: radial-gradient(circle at 35% 30%, #a6fff0, var(--success)); }
 .theme-swatch.theme-violet  { background: radial-gradient(circle at 35% 30%, #d9c2ff, #a070ff); }
 .theme-swatch.theme-emerald { background: radial-gradient(circle at 35% 30%, #c9ffce, #6dff8a); }
 .theme-swatch.active { border-color: var(--text-bright); transform: scale(1.1); }
