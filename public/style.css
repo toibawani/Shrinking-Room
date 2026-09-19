@@ -605,7 +605,12 @@ button { font-family: inherit; cursor: pointer; }
     transition-duration: 0.01ms !important;
   }
 }
+body[data-motion="reduced"] .screen,
+body[data-motion="reduced"] .overlay-card,
+body[data-motion="reduced"] .loading-spinner,
 body[data-motion="reduced"] .stage-frame.warning::after,
+body[data-motion="reduced"] .stage-frame.solved-kick,
+body[data-motion="reduced"] #solve-flash.firing,
 body[data-motion="reduced"] #hud-timer.critical,
 body[data-motion="reduced"] .intro-room-box,
 body[data-motion="reduced"] .menu-glow { animation: none !important; }
