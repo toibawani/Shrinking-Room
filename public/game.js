@@ -333,7 +333,7 @@ function bindEvents() {
     const password = $('signin-password').value;
     $('signin-error').textContent = '';
     const { ok, data } = await signIn(username, password);
-    if (!ok) { $('signin-error').textContent = data.error || 'Something went wrong.'; return; }
+    if (!ok) { $('signin-error').textContent = data.error || 'Could not reach the room.'; return; }
     await afterAuthSuccess(data.username);
   });
 
@@ -346,7 +346,7 @@ function bindEvents() {
     $('signup-error').textContent = '';
     if (password !== confirm) { $('signup-error').textContent = 'Passwords do not match.'; return; }
     const { ok, data } = await signUp(username, password);
-    if (!ok) { $('signup-error').textContent = data.error || 'Something went wrong.'; return; }
+    if (!ok) { $('signup-error').textContent = data.error || 'Could not reach the room.'; return; }
     await afterAuthSuccess(data.username);
   });
 
@@ -525,7 +525,7 @@ function handleLevelComplete() {
   const unlockEl = $('complete-unlock');
   if (unlockedTheme) {
     unlockEl.hidden = false;
-    unlockEl.textContent = `New theme unlocked: ${unlockedTheme}!`;
+    unlockEl.textContent = `Room tint unlocked: ${unlockedTheme}.`;
   } else {
     unlockEl.hidden = true;
   }
