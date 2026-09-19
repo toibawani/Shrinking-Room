@@ -94,7 +94,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ---------------- Screens ---------------- */
 .screen {
   display: none; flex-direction: column; align-items: center; text-align: center;
-  animation: screenIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: screenIn 0.35s ease-out;
 }
 .screen.active { display: flex; }
 .screen.overlay {
@@ -243,7 +243,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .menu-progress-fill {
   height: 100%; width: 0%; background: var(--accent);
-  border-radius: 999px; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: 999px; transition: width 0.4s ease-out;
   box-shadow: 0 0 12px var(--accent-glow);
 }
 .menu-progress-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); margin-top: 8px; }
@@ -439,7 +439,7 @@ button { font-family: inherit; cursor: pointer; }
   width: min(380px, 92vw);
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   box-shadow: var(--shadow-panel);
-  animation: overlayIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: overlayIn 0.3s ease-out;
 }
 @keyframes overlayIn {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
@@ -496,7 +496,7 @@ button { font-family: inherit; cursor: pointer; }
 .rl-ring { width: 100%; height: 100%; border-radius: 50%; position: relative; background: var(--bg-deep); border: 2px solid var(--panel-border); box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.5); }
 .rl-mark { position: absolute; left: 50%; bottom: 50%; width: 8%; height: 42%; margin-left: -4%; transform-origin: 50% 100%; border-radius: 4px; }
 .rl-mark.target { background: var(--success); opacity: 0.45; }
-.rl-mark.pointer { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+.rl-mark.pointer { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); transition: transform 0.3s ease-out; }
 .rl-mark.pointer::before { content: ''; position: absolute; top: -30%; left: -55%; width: 210%; height: 22%; border-radius: 50%; background: var(--accent); }
 .rl-dial.solved .rl-mark.pointer { background: var(--success); box-shadow: 0 0 14px var(--success-glow); }
 .rl-dial.solved .rl-mark.pointer::before { background: var(--success); }
@@ -526,8 +526,10 @@ button { font-family: inherit; cursor: pointer; }
 .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 26px solid var(--tri-color, var(--accent)); }
 
 .wc-grid { width: 92%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(var(--wc-size), 1fr); grid-template-rows: repeat(var(--wc-size), 1fr); gap: 3%; }
-.wc-cell { background: rgba(245, 235, 255, 0.04); border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; transition: background var(--transition-fast), transform var(--transition-fast); }
-.wc-cell:hover:not(.endpoint):not(.path) { background: rgba(245, 235, 255, 0.08); }
+.wc-cell { background: color-mix(in srgb, var(--text-bright) 4%, transparent); border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; transition: background var(--transition-fast), transform var(--transition-fast); }
+.wc-cell:hover:not(.endpoint):not(.path):not(.blocked) { background: color-mix(in srgb, var(--text-bright) 8%, transparent); }
+.wc-cell.blocked { background: var(--bg-deep); border-color: transparent; cursor: default; opacity: 0.35; pointer-events: none; }
+.wc-cell.corridor { background: color-mix(in srgb, var(--text-bright) 2%, transparent); }
 .wc-cell.endpoint { background: var(--pair-color); box-shadow: 0 0 10px var(--pair-color); border-color: transparent; }
 .wc-cell.path { background: color-mix(in srgb, var(--pair-color) 50%, transparent); border-color: transparent; }
 .wc-cell.connected { box-shadow: 0 0 8px var(--pair-color); }
