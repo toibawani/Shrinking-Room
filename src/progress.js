@@ -15,7 +15,7 @@ function rowToProgress(row) {
     unlockedThemes: JSON.parse(row.unlocked_themes),
     currentTheme: row.current_theme,
     difficulty: row.difficulty,
-        soundOn: !!row.sound_on,
+    soundOn: !!row.sound_on,
     motionReduced: !!row.motion_reduced,
     hasSeenTutorial: !!row.has_seen_tutorial,
     hasSeenIntro: !!row.has_seen_intro,
@@ -51,7 +51,7 @@ router.put('/', requireAuth, (req, res) => {
     Date.now(),
     req.user.sub
   );
-    res.json({ ok: true });
+  res.json({ ok: true });
 });
 
 router.post('/reset', requireAuth, (req, res) => {
