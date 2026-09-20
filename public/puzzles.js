@@ -268,7 +268,7 @@ const RotatingLock = {
         dialEls[i].classList.toggle('solved', ok);
         if (!ok) solved = false;
       }
-      if (solved) setTimeout(onSolved, 260);
+      if (solved) { SFX.correct(); setTimeout(onSolved, 280); }
     }
 
     function rotateDial(i) {
@@ -281,7 +281,7 @@ const RotatingLock = {
       }
       checkWin();
     }
-    return function destroy() {};
+    return function destroy() { dialEls.length = 0; };
   },
 };
 
@@ -330,8 +330,18 @@ const WireConnect = {
       const b = path[path.length - 1];
       cells[a[0]][a[1]] = { kind: 'endpoint', pair: pairIndex };
       cells[b[0]][b[1]] = { kind: 'endpoint', pair: pairIndex };
+      for (let i = 1; i < path.length - 1; i++) {
+        const [r, c] = path[i];
+        cells[r][c] = { kind: 'corridor', pair: pairIndex };
+      }
       endpoints.push([a, b]);
       pairIndex++;
+    }
+
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (cells[r][c] === null) cells[r][c] = { kind: 'blocked' };
+      }
     }
 
     return {
@@ -366,18 +376,30 @@ const WireConnect = {
           const el = cellEls[r][c];
           el.className = 'wc-cell';
           if (data) {
-            el.style.setProperty('--pair-color', WC_PAIR_COLORS[data.pair]);
-            el.classList.add(data.kind === 'endpoint' ? 'endpoint' : 'path');
-            if (state.connected[data.pair]) el.classList.add('connected');
+            if (data.kind === 'blocked') {
+              el.classList.add('blocked');
+            } else {
+              el.style.setProperty('--pair-color', WC_PAIR_COLORS[data.pair]);
+              if (data.kind === 'endpoint') el.classList.add('endpoint');
+              else if (data.kind === 'path') el.classList.add('path');
+              else if (data.kind === 'corridor') el.classList.add('corridor');
+              if (state.connected[data.pair]) el.classList.add('connected');
+            }
           }
         }
       }
+    }
+
+    function revertPathCell(r, c, pair) {
+      const cell = state.cells[r][c];
+      if (cell && cell.kind === 'path') state.cells[r][c] = { kind: 'corridor', pair };
     }
     function isAdjacent(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1; }
     function flashInvalid(r, c) { cellEls[r][c].classList.add('invalid'); setTimeout(() => cellEls[r][c].classList.remove('invalid'), 220); }
 
     function handleClick(r, c) {
       const data = state.cells[r][c];
+      if (data && data.kind === 'blocked') return;
       if (state.activePair === null) {
         if (data && data.kind === 'endpoint' && !state.connected[data.pair]) {
           SFX.click();
@@ -391,7 +413,7 @@ const WireConnect = {
       const startCoord = state.currentPath[0];
       const last = state.currentPath[state.currentPath.length - 1];
       if (r === startCoord[0] && c === startCoord[1]) {
-        state.currentPath.slice(1).forEach(([pr, pc]) => { state.cells[pr][pc] = null; });
+        state.currentPath.slice(1).forEach(([pr, pc]) => revertPathCell(pr, pc, pair));
         state.activePair = null;
         state.currentPath = [];
         render();
@@ -408,7 +430,8 @@ const WireConnect = {
         if (state.connected.every(Boolean)) setTimeout(onSolved, 260);
         return;
       }
-      if (data === null) {
+      if (data && data.kind === 'corridor' && data.pair !== pair) { SFX.wrong(); flashInvalid(r, c); return; }
+      if (data === null || (data.kind === 'corridor' && data.pair === pair)) {
         SFX.click();
         state.cells[r][c] = { kind: 'path', pair };
         state.currentPath.push([r, c]);
