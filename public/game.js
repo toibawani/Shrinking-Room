@@ -40,6 +40,8 @@ const GameState = {
   lastTimestamp: 0,
   lastWarningBeep: 0,
   activePuzzle: null,
+  activePuzzleType: null,
+  lastScore: 0,
 };
 
 function $(id) { return document.getElementById(id); }
@@ -386,6 +388,12 @@ function bindEvents() {
       else if (GameState.isPlaying && GameState.baseScreen === 'screen-game') pauseGame();
       return;
     }
+    if ($('screen-game-over').classList.contains('active') && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      hideOverlay('screen-game-over');
+      startLevel(GameState.currentLevelIndex);
+      return;
+    }
     if (GameState.activePuzzle && GameState.activePuzzle.onKey && GameState.isPlaying && !GameState.isPaused) {
       if (e.key === 'Enter' || e.key === 'Backspace') {
         e.preventDefault();
@@ -395,6 +403,9 @@ function bindEvents() {
   });
 
   window.addEventListener('resize', updateStageScale);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && GameState.isPlaying && !GameState.isPaused) pauseGame();
+  });
 }
 
 function updateStageScale() {
@@ -452,6 +463,7 @@ function mountCurrentPuzzle() {
   const layer = $('puzzle-layer');
   layer.innerHTML = '';
   GameState.activePuzzle = Puzzles.create(puzzleConfig.type, puzzleConfig.params, layer, handlePuzzleSolved);
+  GameState.activePuzzleType = puzzleConfig.type;
 
   const multiTag = level.puzzles.length > 1 ? ` · ${GameState.puzzleIndexInLevel + 1}/${level.puzzles.length}` : '';
   $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type) + multiTag;
@@ -473,7 +485,11 @@ function fireSolveFlash(color, big) {
 }
 
 function handlePuzzleSolved() {
-  SFX.solved();
+  SFX.solve(GameState.activePuzzleType || 'default');
+  SFX.pauseBackground();
+  setTimeout(() => { if (GameState.isPlaying) SFX.resumeBackground(); }, 420);
+  const layer = $('puzzle-layer');
+  if (layer) { layer.classList.add('solved'); setTimeout(() => layer.classList.remove('solved'), 420); }
   persisted.stats.puzzlesSolved++;
   const level = getCurrentLevelData();
   const isLastPuzzleInLevel = GameState.puzzleIndexInLevel + 1 >= level.puzzles.length;
@@ -498,11 +514,18 @@ function handleLevelComplete() {
   const isNewRecord = prevBest === undefined || timeTaken < prevBest;
   if (isNewRecord) persisted.bestTimes[level.id] = timeTaken;
 
+  const effectiveLimit = getEffectiveTimeLimit(level);
+  const roomRange = Math.max(1, level.initialRoomSize - level.crushRoomSize);
+  const roomLeftRatio = Math.max(0, Math.min(1, (GameState.displayedRoomSize - level.crushRoomSize) / roomRange));
+  const timeBonus = Math.round(Math.max(0, effectiveLimit - timeTaken) * 10);
+  const roomBonus = Math.round(roomLeftRatio * 1000);
+  const score = timeBonus + roomBonus;
+  GameState.lastScore = score;
+
   if (level.id >= persisted.unlockedLevel && level.id < LEVELS.length) {
     persisted.unlockedLevel = level.id + 1;
   }
 
-  const effectiveLimit = getEffectiveTimeLimit(level);
   if (timeTaken <= effectiveLimit * 0.6) GameState.combo++;
   else GameState.combo = 0;
 
@@ -521,6 +544,9 @@ function handleLevelComplete() {
 
   $('complete-room-name').textContent = level.name;
   $('complete-time').textContent = timeTaken.toFixed(1);
+  $('complete-score').textContent = score;
+  const roomLeftPct = Math.round(Math.max(0, roomLeftRatio) * 100);
+  $('complete-room-left').textContent = roomLeftPct + '%';
   $('complete-combo').textContent = GameState.combo;
   $('complete-record').hidden = !isNewRecord;
   const unlockEl = $('complete-unlock');
@@ -689,7 +715,7 @@ function roundRectPath(ctx, x, y, w, h, r) {
 function renderCanvas() {
   const canvas = $('game-canvas');
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+  const W = STAGE_BASE, H = STAGE_BASE;
   ctx.clearRect(0, 0, W, H);
 
   const level = GameState.isPlaying || GameState.baseScreen === 'screen-game' ? getCurrentLevelData() : LEVELS[0];
@@ -712,8 +738,11 @@ function renderCanvas() {
 
   if (activeWarning && !isMotionReduced()) {
     ctx.save();
-    ctx.globalAlpha = 0.08 + 0.05 * Math.sin(GameState.elapsed * 12);
-    ctx.fillStyle = getCSSVar('--danger') || '#ff5533';
+    const pulse = 0.5 + 0.5 * Math.sin(GameState.elapsed * 12);
+    const grad = ctx.createRadialGradient(W / 2, H / 2, size * 0.35, W / 2, H / 2, W * 0.58);
+    grad.addColorStop(0, 'transparent');
+    grad.addColorStop(1, `rgba(255, 85, 51, ${0.12 + 0.08 * pulse})`);
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
   }
@@ -801,7 +830,8 @@ function gameLoopTick(timestamp) {
 
   if (GameState.isPlaying && !GameState.isPaused) {
     updateGameplay(dt);
-    GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+    const diff = GameState.targetRoomSize - GameState.displayedRoomSize;
+    GameState.displayedRoomSize += diff * (1 - Math.exp(-7 * dt));
     updateShakeState(dt);
   }
   updateCompressionFromRoom();
@@ -902,7 +932,20 @@ function setSound(on) {
   syncSoundButtons();
 }
 
+function setupCanvasDPR() {
+  const canvas = $('game-canvas');
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = STAGE_BASE * dpr;
+  canvas.height = STAGE_BASE * dpr;
+  canvas.style.width = STAGE_BASE + 'px';
+  canvas.style.height = STAGE_BASE + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
 async function initGame() {
+  setupCanvasDPR();
   bindEvents();
   updateStageScale();
   requestAnimationFrame(gameLoopTick);

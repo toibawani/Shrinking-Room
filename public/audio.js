@@ -138,12 +138,25 @@ const SFX = (function () {
     click()    { tone({ freq: 480, duration: 0.04, type: 'square', gain: 0.04 }); },
     uiToggle() { tone({ freq: 400, duration: 0.05, type: 'sine', gain: 0.06 }); },
     correct()  { tone({ freq: 620, duration: 0.07, type: 'sine', gain: 0.1 }); tone({ freq: 830, duration: 0.08, delay: 0.05, type: 'sine', gain: 0.1 }); },
-    wrong()    { tone({ freq: 160, duration: 0.14, type: 'sawtooth', gain: 0.08, glide: 90 }); },
+    wrong()    { tone({ freq: 160, duration: 0.14, type: 'sawtooth', gain: 0.08, glide: 90 }); if (navigator.vibrate) navigator.vibrate(16); },
     shrink()   { tone({ freq: 88, duration: 0.2, type: 'sine', gain: 0.14, glide: 50 }); },
     warning()  { tone({ freq: 720, duration: 0.05, type: 'square', gain: 0.04 }); },
 
     solved() {
       [494, 622, 740, 988].forEach((f, i) => tone({ freq: f, duration: 0.12, delay: i * 0.06, type: 'triangle', gain: 0.11 }));
+    },
+    solve(type) {
+      const sets = {
+        patternCompletion: [523, 659, 784],
+        hiddenKey: [440, 554, 659],
+        symbolMemory: [392, 523, 659, 784],
+        rotatingLock: [330, 494, 659],
+        wireConnect: [466, 587, 740],
+        weightBalance: [415, 523, 622],
+        wordForge: [587, 740, 880],
+      };
+      const freqs = sets[type] || [494, 622, 740, 988];
+      freqs.forEach((f, i) => tone({ freq: f, duration: 0.1, delay: i * 0.05, type: 'triangle', gain: 0.1 }));
     },
     levelComplete() {
       [494, 622, 740, 988, 1175].forEach((f, i) => tone({ freq: f, duration: 0.14, delay: i * 0.07, type: 'sine', gain: 0.1 }));

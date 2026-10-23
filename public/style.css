@@ -69,7 +69,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button { font-family: inherit; cursor: pointer; }
+button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
+#puzzle-layer { touch-action: manipulation; }
 :focus-visible { outline: 2px solid var(--volt); outline-offset: 3px; }
 
 /* ---------------- Ambient background ---------------- */
@@ -599,7 +600,9 @@ button { font-family: inherit; cursor: pointer; }
   .endgame-stats { grid-template-columns: 1fr; }
 }
 
-/* ---------------- Reduced motion ---------------- */
+#puzzle-layer.solved { animation: puzzleSolve 0.42s ease-out; }
+@keyframes puzzleSolve { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) { #puzzle-layer.solved { animation: none; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -614,5 +617,12 @@ body[data-motion="reduced"] .stage-frame.warning::after,
 body[data-motion="reduced"] .stage-frame.solved-kick,
 body[data-motion="reduced"] #solve-flash.firing,
 body[data-motion="reduced"] #hud-timer.critical,
+/* ---------------- Skeleton loaders ---------------- */
+.skeleton-card { width: min(360px, 90vw); padding: 28px; border: 1px solid var(--panel-border); border-radius: var(--radius-md); background: var(--bg-panel); }
+.skeleton-line { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--bg-panel-raised), var(--bg-deep), var(--bg-panel-raised)); background-size: 200% 100%; animation: skeletonShimmer 1.4s ease-in-out infinite; margin: 12px 0; }
+.skeleton-title { height: 20px; width: 60%; }
+.skeleton-short { width: 40%; }
+@keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton-line { animation: none; } }
 body[data-motion="reduced"] .intro-room-box,
 body[data-motion="reduced"] .menu-glow { animation: none !important; }

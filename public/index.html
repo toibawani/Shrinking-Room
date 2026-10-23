@@ -68,7 +68,11 @@
   </section>
 
   <section id="screen-loading" class="screen" aria-live="polite">
-    <div class="loading-spinner" aria-hidden="true"></div>
+    <div class="skeleton-card" aria-hidden="true">
+      <div class="skeleton-line skeleton-title"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-short"></div>
+    </div>
     <p class="terminal-eyebrow">Restoring session&hellip;</p>
   </section>
 
@@ -239,6 +243,8 @@
       <h2 id="complete-title">Room Cleared</h2>
       <p class="overlay-stat" id="complete-room-name">First Light</p>
       <p class="overlay-stat">Time: <span id="complete-time">0</span>s</p>
+      <p class="overlay-stat">Score: <span id="complete-score">0</span></p>
+      <p class="overlay-stat">Room left: <span id="complete-room-left">0%</span></p>
       <p class="overlay-record" id="complete-record" hidden>Fastest yet.</p>
       <p class="overlay-stat">Streak: <span id="complete-combo">0</span></p>
       <p class="overlay-note" id="complete-unlock" hidden></p>
