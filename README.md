@@ -53,10 +53,13 @@ npm run dev   # auto-restart on file changes
 
 ### Environment variables
 
-| Variable     | Default                | Notes                                          |
-|--------------|------------------------|------------------------------------------------|
-| `PORT`       | `3000`                 | Server port                                    |
-| `JWT_SECRET` | insecure dev default   | **Set before any public deployment.**          |
+| Variable          | Default                | Notes                                          |
+|-------------------|------------------------|------------------------------------------------|
+| `NODE_ENV`        | `development`          | Set to `production` in deployment              |
+| `PORT`            | `3000`                 | Server port                                    |
+| `JWT_SECRET`      | (required)             | **Must be set; server refuses to start without it.** |
+| `BCRYPT_ROUNDS`   | `12`                   | Password hashing cost                          |
+| `ALLOWED_ORIGINS` | `http://localhost:PORT` (dev) | Comma-separated allowlist; required in prod |
 
 ## Project structure
 

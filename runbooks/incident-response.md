@@ -5,7 +5,7 @@ For a tired person at 2am. Check in order; stop when you find the break.
 ## Signup or login broken
 
 1. **Is the server running?** Hit the root URL. You should get the game HTML, not a connection refused.
-2. **Check server logs on boot.** Missing `JWT_SECRET` prints a warning — sessions work locally but are insecure; shouldn't block login unless something else is wrong.
+2. **Check server logs on boot.** Missing `JWT_SECRET` now causes the server to exit immediately — set it before starting.
 3. **Try signup with a fresh username.** If signup 409s, username taken. If 400, validation failed (3–16 alphanumeric/underscore, password ≥ 6).
 4. **Try login with known-good credentials.** 401 with "Invalid username or password." means bad creds OR user doesn't exist — by design, same message.
 5. **Inspect `data/shrinkingroom.db` exists and is writable.** If `data/` can't be created or the DB file is read-only, signup fails when inserting the user row. Check disk space and permissions.

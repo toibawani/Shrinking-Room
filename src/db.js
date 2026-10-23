@@ -31,7 +31,7 @@ db.exec(`
     motion_reduced INTEGER NOT NULL DEFAULT 0,
     has_seen_tutorial INTEGER NOT NULL DEFAULT 0,
     has_seen_intro INTEGER NOT NULL DEFAULT 0,
-    stats TEXT NOT NULL DEFAULT '{"puzzlesSolved":0,"roomsCleared":0,"bestStreak":0}',
+    stats TEXT NOT NULL DEFAULT '{"puzzlesSolved":0,"roomsCleared":0,"bestStreak":0,"totalPlayTime":0}',
     updated_at INTEGER NOT NULL
   );
 `);

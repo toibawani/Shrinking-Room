@@ -1,28 +1,32 @@
-// src/auth.js
-// Signup / login / logout / me. Passwords are hashed with bcrypt, never
-// stored or logged in plaintext. Sessions are a JWT in an httpOnly cookie,
-// so client-side JS can never read the token directly.
-
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
+const config = require('./config');
+const { z, validate } = require('./validate');
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret-change-in-production';
-if (!process.env.JWT_SECRET) {
-  console.warn('[auth] JWT_SECRET not set — using an insecure dev default. Set a real one before deploying anywhere public.');
-}
-
+const JWT_SECRET = config.jwtSecret;
 const COOKIE_NAME = 'sr_session';
 const COOKIE_OPTS = {
   httpOnly: true,
-  sameSite: 'lax',
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  sameSite: 'strict',
+  secure: config.cookieSecure,
+  maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
+
+const signupSchema = z.object({
+  username: z.string().regex(USERNAME_RE, '3-16 characters: letters, numbers, and underscores only.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+}).strict();
+
+const loginSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+}).strict();
 
 function issueSession(res, user) {
   const token = jwt.sign({ sub: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
@@ -36,55 +40,42 @@ function requireAuth(req, res, next) {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch (e) {
-    res.clearCookie(COOKIE_NAME);
+    res.clearCookie(COOKIE_NAME, COOKIE_OPTS);
     return res.status(401).json({ error: 'Session expired. Please sign in again.' });
   }
 }
 
-router.post('/signup', (req, res) => {
-  const { username, password } = req.body || {};
-
-  if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
-    return res.status(400).json({ error: '3-16 characters: letters, numbers, and underscores only.' });
-  }
-  if (typeof password !== 'string' || password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-  }
-
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (existing) {
-    return res.status(409).json({ error: 'That username is already taken.' });
-  }
-
-  const passwordHash = bcrypt.hashSync(password, 10);
-  const now = Date.now();
-  const info = db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)').run(username, passwordHash, now);
-  const userId = Number(info.lastInsertRowid);
-  db.prepare('INSERT INTO progress (user_id, updated_at) VALUES (?, ?)').run(userId, now);
-
-  issueSession(res, { id: userId, username });
-  res.status(201).json({ username });
+router.post('/signup', validate(signupSchema), (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    if (existing) {
+      return res.status(409).json({ error: 'Invalid username or password.' });
+    }
+    const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
+    const now = Date.now();
+    const info = db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)').run(username, passwordHash, now);
+    const userId = Number(info.lastInsertRowid);
+    db.prepare('INSERT INTO progress (user_id, updated_at) VALUES (?, ?)').run(userId, now);
+    issueSession(res, { id: userId, username });
+    res.status(201).json({ username });
+  } catch (e) { next(e); }
 });
 
-router.post('/login', (req, res) => {
-  const { username, password } = req.body || {};
-  if (typeof username !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Invalid username or password.' });
-  }
-
-  const user = db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
-  // Deliberately generic error message either way, so we don't leak which
-  // usernames exist (basic protection against account enumeration).
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    return res.status(401).json({ error: 'Invalid username or password.' });
-  }
-
-  issueSession(res, user);
-  res.json({ username: user.username });
+router.post('/login', validate(loginSchema), (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    const user = db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+    issueSession(res, user);
+    res.json({ username: user.username });
+  } catch (e) { next(e); }
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie(COOKIE_NAME);
+  res.clearCookie(COOKIE_NAME, COOKIE_OPTS);
   res.json({ ok: true });
 });
 

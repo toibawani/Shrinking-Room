@@ -4,6 +4,7 @@ const DIFFICULTY_MULTIPLIERS = { easy: 1.35, normal: 1.0, hard: 0.72 };
 const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
 const STAGE_BASE = 600;
 const WARNING_THRESHOLD = 5;
+function escapeHtml(value) { return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 const TUTORIAL_STEPS = [
   { title: 'The room is shrinking.', body: 'Four walls close inward on a timer. Solve the puzzle at the center before they reach you.' },
@@ -207,7 +208,7 @@ function renderLevelGrid() {
 
     const header = document.createElement('div');
     header.className = 'level-chapter-header';
-    header.innerHTML = `<span class="level-chapter-num">${chapter.label}</span><span class="level-chapter-name">${chapter.name}</span><span class="level-chapter-tagline">${chapter.tagline}</span>`;
+    header.innerHTML = `<span class="level-chapter-num">${escapeHtml(chapter.label)}</span><span class="level-chapter-name">${escapeHtml(chapter.name)}</span><span class="level-chapter-tagline">${escapeHtml(chapter.tagline)}</span>`;
     section.appendChild(header);
 
     const grid = document.createElement('div');
@@ -225,8 +226,8 @@ function renderLevelGrid() {
       const best = persisted.bestTimes[level.id];
       const prevName = i > 0 ? LEVELS[i - 1].name : '';
       card.innerHTML = locked
-        ? `<span class="level-num">${level.id}</span><span class="level-name">Clear "${prevName}"</span>`
-        : `<span class="level-num">${level.id}</span><span class="level-name">${level.name}</span><span class="level-best">${best !== undefined ? best.toFixed(1) + 's' : '—'}</span>`;
+        ? `<span class="level-num">${escapeHtml(level.id)}</span><span class="level-name">Clear "${escapeHtml(prevName)}"</span>`
+        : `<span class="level-num">${escapeHtml(level.id)}</span><span class="level-name">${escapeHtml(level.name)}</span><span class="level-best">${best !== undefined ? escapeHtml(best.toFixed(1) + 's') : '—'}</span>`;
 
       if (!locked) card.addEventListener('click', () => { SFX.click(); startLevel(i); });
       grid.appendChild(card);
@@ -544,10 +545,10 @@ function showEndgame() {
   const stats = persisted.stats;
   const totalTime = Object.values(persisted.bestTimes).reduce((a, b) => a + b, 0);
   $('endgame-stats').innerHTML = `
-    <div class="endgame-stat"><span class="endgame-stat-value">${Object.keys(persisted.bestTimes).length}</span><span class="endgame-stat-label">Rooms cleared</span></div>
-    <div class="endgame-stat"><span class="endgame-stat-value">${totalTime.toFixed(1)}s</span><span class="endgame-stat-label">Total best time</span></div>
-    <div class="endgame-stat"><span class="endgame-stat-value">${stats.bestStreak}</span><span class="endgame-stat-label">Best streak</span></div>
-    <div class="endgame-stat"><span class="endgame-stat-value">${stats.puzzlesSolved}</span><span class="endgame-stat-label">Puzzles solved</span></div>
+    <div class="endgame-stat"><span class="endgame-stat-value">${escapeHtml(Object.keys(persisted.bestTimes).length)}</span><span class="endgame-stat-label">Rooms cleared</span></div>
+    <div class="endgame-stat"><span class="endgame-stat-value">${escapeHtml(totalTime.toFixed(1))}s</span><span class="endgame-stat-label">Total best time</span></div>
+    <div class="endgame-stat"><span class="endgame-stat-value">${escapeHtml(stats.bestStreak)}</span><span class="endgame-stat-label">Best streak</span></div>
+    <div class="endgame-stat"><span class="endgame-stat-value">${escapeHtml(stats.puzzlesSolved)}</span><span class="endgame-stat-label">Puzzles solved</span></div>
   `;
   showOverlay('screen-endgame');
 }

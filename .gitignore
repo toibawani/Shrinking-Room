@@ -15,3 +15,11 @@ npm-debug.log*
 
 # Local database
 data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+.env
+.env.local
+.env.*.local
