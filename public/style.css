@@ -637,4 +637,19 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
+/* Accessibility: high contrast / forced colors */
+@media (forced-colors: active) {
+  .pc-tile.option, .hk-item, .wc-cell, .rl-dial, .wb-chip, .wf-tile, .sm-node {
+    border: 2px solid ButtonText;
+  }
+  button, .overlay-close {
+    border: 2px solid ButtonText;
+  }
+}
+@media (prefers-contrast: high) {
+  .pc-tile.option:focus-visible, .hk-item:focus-visible, .wc-cell:focus-visible,
+  .rl-dial:focus-visible, .wb-chip:focus-visible, .wf-tile:focus-visible {
+    outline-width: 3px;
+  }
+}
 }
