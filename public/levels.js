@@ -82,3 +82,6 @@ function getChapter(chapterId) {
 function getLevelChapter(level) {
   return getChapter(level.chapter);
 }
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { LEVELS, CHAPTERS };
+}

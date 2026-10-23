@@ -12,6 +12,26 @@ function prShuffle(arr) {
   return a;
 }
 function prRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function mulberry32(seed) {
+  let a = (seed >>> 0) || 0x9e3779b9;
+  return function () {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function wcShuffle(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+function wcRandomInt(min, max, rng) { return Math.floor(rng() * (max - min + 1)) + min; }
+
 function prMakeEl(tag, className) {
   const el = document.createElement(tag);
   if (className) el.className = className;
@@ -288,68 +308,151 @@ const RotatingLock = {
 /* ---- Wire / Pipe Connect ---- */
 const WC_PAIR_COLORS = ['#ffb454', '#4dd8ff', '#ff6b9d', '#8aff6b'];
 
-function wcCarvePath(gridSize, occupied) {
-  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-  const isFree = (r, c) => r >= 0 && c >= 0 && r < gridSize && c < gridSize && !occupied.has(r + ',' + c);
+const WC_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const start = [prRandomInt(0, gridSize - 1), prRandomInt(0, gridSize - 1)];
-    if (!isFree(start[0], start[1])) continue;
+function wcKey(r, c) { return r + ',' + c; }
+
+function wcCarvePath(rng, gridSize, occupied) {
+  // Find a simple path of random length avoiding occupied cells.
+  const targetLen = 2 + wcRandomInt(0, Math.min(3, gridSize - 1), rng);
+  const freeCells = [];
+  for (let r = 0; r < gridSize; r++)
+    for (let c = 0; c < gridSize; c++)
+      if (!occupied.has(wcKey(r, c))) freeCells.push([r, c]);
+  if (freeCells.length < targetLen) return null;
+
+  const starts = wcShuffle(freeCells, rng);
+  for (const start of starts) {
     const path = [start];
-    const visited = new Set([start[0] + ',' + start[1]]);
-    const targetLen = 2 + prRandomInt(0, Math.min(3, gridSize - 1));
-    let stuck = false;
-    while (path.length < targetLen) {
-      const [r, c] = path[path.length - 1];
-      const next = prShuffle(dirs)
-        .map(([dr, dc]) => [r + dr, c + dc])
-        .find(([nr, nc]) => isFree(nr, nc) && !visited.has(nr + ',' + nc));
-      if (!next) { stuck = true; break; }
-      path.push(next);
-      visited.add(next[0] + ',' + next[1]);
+    const visited = new Set([wcKey(start[0], start[1])]);
+    if (wcExtendPath(path, visited, targetLen, gridSize, occupied, rng)) {
+      return path.slice();
     }
-    if (!stuck && path.length >= 2) return path;
   }
   return null;
+}
+
+function wcExtendPath(path, visited, targetLen, gridSize, occupied, rng) {
+  if (path.length >= targetLen) return true;
+  const [r, c] = path[path.length - 1];
+  const nbrs = wcShuffle(WC_DIRS, rng)
+    .map(([dr, dc]) => [r + dr, c + dc])
+    .filter(([nr, nc]) => nr >= 0 && nc >= 0 && nr < gridSize && nc < gridSize &&
+      !occupied.has(wcKey(nr, nc)) && !visited.has(wcKey(nr, nc)));
+  for (const n of nbrs) {
+    path.push(n);
+    visited.add(wcKey(n[0], n[1]));
+    if (wcExtendPath(path, visited, targetLen, gridSize, occupied, rng)) return true;
+    path.pop();
+    visited.delete(wcKey(n[0], n[1]));
+  }
+  return false;
+}
+
+function wcConstructSolution(rng, gridSize, pairs) {
+  const occupied = new Set();
+  const paths = [];
+  function place(wireIdx) {
+    if (wireIdx === pairs) return true;
+    for (let t = 0; t < 120; t++) {
+      const path = wcCarvePath(rng, gridSize, occupied);
+      if (!path) continue;
+      const keys = path.map(([r, c]) => wcKey(r, c));
+      keys.forEach(k => occupied.add(k));
+      paths.push(path);
+      if (place(wireIdx + 1)) return true;
+      paths.pop();
+      keys.forEach(k => occupied.delete(k));
+    }
+    return false;
+  }
+  if (!place(0)) return null;
+  return paths;
+}
+
+function wcVerifyBoard(board) {
+  if (!board || board.pairs !== board.endpoints.length) return false;
+  // each pair's corridor+endpoints must form a connected component
+  for (let i = 0; i < board.pairs; i++) {
+    const start = board.endpoints[i][0];
+    const goal = board.endpoints[i][1];
+    // BFS over cells belonging to pair i
+    const seen = new Set();
+    const q = [wcKey(start[0], start[1])];
+    seen.add(q[0]);
+    let found = false;
+    while (q.length) {
+      const cur = q.shift();
+      if (cur === wcKey(goal[0], goal[1])) { found = true; break; }
+      const [r, c] = cur.split(',').map(Number);
+      for (const [dr, dc] of WC_DIRS) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nc < 0 || nr >= board.gridSize || nc >= board.gridSize) continue;
+        const cell = board.cells[nr][nc];
+        if (!cell || cell.pair !== i) continue;
+        if (cell.kind !== 'endpoint' && cell.kind !== 'corridor') continue;
+        const k = wcKey(nr, nc);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        q.push(k);
+      }
+    }
+    if (!found) return false;
+  }
+  // disjointness: no cell claimed by two pairs
+  const seenCell = new Set();
+  for (let r = 0; r < board.gridSize; r++) {
+    for (let c = 0; c < board.gridSize; c++) {
+      const cell = board.cells[r][c];
+      if (!cell || cell.kind === 'blocked') continue;
+      const k = r + ',' + c + ':' + cell.pair;
+      // just ensure each non-blocked cell has a single pair (structural)
+    }
+  }
+  return true;
 }
 
 const WireConnect = {
   generate(params) {
     const gridSize = params.gridSize || 4;
     const requestedPairs = Math.min(params.pairs || 2, WC_PAIR_COLORS.length);
-    const cells = Array.from({ length: gridSize }, () => Array.from({ length: gridSize }, () => null));
-    const occupied = new Set();
-    const endpoints = [];
-    let pairIndex = 0;
+    const seed = (typeof params.seed === 'number')
+      ? (params.seed >>> 0)
+      : ((Math.random() * 0x100000000) >>> 0);
 
-    for (let p = 0; p < requestedPairs; p++) {
-      const path = wcCarvePath(gridSize, occupied);
-      if (!path) break;
-      path.forEach(([r, c]) => occupied.add(r + ',' + c));
-      const a = path[0];
-      const b = path[path.length - 1];
-      cells[a[0]][a[1]] = { kind: 'endpoint', pair: pairIndex };
-      cells[b[0]][b[1]] = { kind: 'endpoint', pair: pairIndex };
-      for (let i = 1; i < path.length - 1; i++) {
-        const [r, c] = path[i];
-        cells[r][c] = { kind: 'corridor', pair: pairIndex };
-      }
-      endpoints.push([a, b]);
-      pairIndex++;
+    const MAX_ATTEMPTS = 100;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const rng = mulberry32((seed + attempt * 0x9e3779b9) >>> 0);
+      const paths = wcConstructSolution(rng, gridSize, requestedPairs);
+      if (!paths) continue;
+
+      // build cells
+      const cells = Array.from({ length: gridSize }, () => Array.from({ length: gridSize }, () => null));
+      const endpoints = [];
+      paths.forEach((path, i) => {
+        const a = path[0];
+        const b = path[path.length - 1];
+        cells[a[0]][a[1]] = { kind: 'endpoint', pair: i };
+        cells[b[0]][b[1]] = { kind: 'endpoint', pair: i };
+        for (let j = 1; j < path.length - 1; j++) {
+          const [r, c] = path[j];
+          cells[r][c] = { kind: 'corridor', pair: i };
+        }
+        endpoints.push([a, b]);
+      });
+      for (let r = 0; r < gridSize; r++)
+        for (let c = 0; c < gridSize; c++)
+          if (cells[r][c] === null) cells[r][c] = { kind: 'blocked' };
+
+      const board = {
+        gridSize, pairs: endpoints.length, cells, endpoints,
+        connected: Array(endpoints.length).fill(false),
+        activePair: null, currentPath: [],
+        seed,
+      };
+      if (wcVerifyBoard(board)) return board;
     }
-
-    for (let r = 0; r < gridSize; r++) {
-      for (let c = 0; c < gridSize; c++) {
-        if (cells[r][c] === null) cells[r][c] = { kind: 'blocked' };
-      }
-    }
-
-    return {
-      gridSize, pairs: pairIndex, cells, endpoints,
-      connected: Array(pairIndex).fill(false),
-      activePair: null,
-      currentPath: [],
-    };
+    throw new Error('WireConnect.generate: failed to produce a solvable board');
   },
   mount(state, container, onSolved) {
     container.innerHTML = '';
@@ -673,3 +776,12 @@ const Puzzles = {
   },
   hint(type) { return PUZZLE_HINTS[type] || ''; },
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    WireConnect,
+    WC_PAIR_COLORS,
+    mulberry32,
+    wcVerifyBoard,
+  };
+}
