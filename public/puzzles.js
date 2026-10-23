@@ -194,6 +194,7 @@ const SymbolMemory = {
       const node = prMakeEl('button', 'sm-node');
       node.type = 'button';
       node.textContent = sym;
+      node.setAttribute('aria-label', `Symbol ${sym}`);
       node.dataset.index = i;
       grid.appendChild(node);
       return node;
@@ -690,6 +691,7 @@ const WordForge = {
       const tile = prMakeEl('button', 'wf-tile');
       tile.type = 'button';
       tile.textContent = letter;
+      tile.setAttribute('aria-label', `Letter ${letter}`);
       tile.dataset.index = i;
       tile.addEventListener('click', () => {
         if (tile.classList.contains('used')) return;
