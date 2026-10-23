@@ -1,4 +1,3 @@
-// src/validate.js
 const { z } = require('zod');
 
 function validate(schema) {

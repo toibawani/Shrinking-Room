@@ -40,7 +40,7 @@ function requireAuth(req, res, next) {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch (e) {
-    res.clearCookie(COOKIE_NAME, COOKIE_OPTS);
+    res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', secure: config.cookieSecure });
     return res.status(401).json({ error: 'Session expired. Please sign in again.' });
   }
 }
@@ -75,7 +75,7 @@ router.post('/login', validate(loginSchema), (req, res, next) => {
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie(COOKIE_NAME, COOKIE_OPTS);
+  res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', secure: config.cookieSecure });
   res.json({ ok: true });
 });
 

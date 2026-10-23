@@ -93,6 +93,10 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   res.status(status).json({ error: 'Something went wrong.' });
 });
 
-app.listen(config.port, () => {
-  console.log(`Shrinking Room listening on http://localhost:${config.port}`);
-});
+if (require.main === module) {
+  app.listen(config.port, () => {
+    console.log(`Shrinking Room listening on http://localhost:${config.port}`);
+  });
+}
+
+module.exports = app;
