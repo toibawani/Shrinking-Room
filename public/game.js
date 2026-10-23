@@ -162,8 +162,22 @@ function switchBaseScreen(id) {
   if (id === 'screen-menu') updateMenuStats();
 }
 
-function showOverlay(id) { $(id).classList.add('active'); }
-function hideOverlay(id) { $(id).classList.remove('active'); }
+let lastFocusBeforeOverlay = null;
+function showOverlay(id) {
+  lastFocusBeforeOverlay = document.activeElement;
+  const el = $(id);
+  el.classList.add('active');
+  const focusable = el.querySelector('button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusable) setTimeout(() => focusable.focus(), 0);
+}
+function hideOverlay(id) {
+  const el = $(id);
+  el.classList.remove('active');
+  if (lastFocusBeforeOverlay && typeof lastFocusBeforeOverlay.focus === 'function') {
+    lastFocusBeforeOverlay.focus();
+    lastFocusBeforeOverlay = null;
+  }
+}
 
 const LEVEL_ACCENTS = ['#e8457a', '#2ee8b6', '#d4e847', '#a070ff', '#ff7744', '#44c8ff', '#8aff6b', '#ff6688', '#5cffe0', '#ffcf5c', '#c080ff', '#6dff8a'];
 const LEVEL_ACCENT_TOKENS = ['--accent', '--success', '--volt'];
@@ -383,6 +397,16 @@ function bindEvents() {
   $('btn-reset-progress').addEventListener('click', () => resetProgress());
 
   document.addEventListener('keydown', (e) => {
+    const activeOverlay = document.querySelector('.screen.overlay.active');
+    if (activeOverlay && e.key === 'Tab') {
+      const focusables = [...activeOverlay.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])')];
+      if (focusables.length) {
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
     if (e.key === 'Escape') {
       if ($('screen-pause').classList.contains('active')) resumeGame();
       else if (GameState.isPlaying && GameState.baseScreen === 'screen-game') pauseGame();

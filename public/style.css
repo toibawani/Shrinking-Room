@@ -626,3 +626,15 @@ body[data-motion="reduced"] #hud-timer.critical,
 @media (prefers-reduced-motion: reduce) { .skeleton-line { animation: none; } }
 body[data-motion="reduced"] .intro-room-box,
 body[data-motion="reduced"] .menu-glow { animation: none !important; }
+/* Accessibility: touch targets and safe areas */
+@media (pointer: coarse) {
+  button, .wc-cell, .hk-item, .sm-node, .rl-dial, .pc-tile.option, .wb-chip, .wf-tile, .wf-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -42,3 +42,7 @@ Adversarial sim: random pair order, prefer longest valid paths, reject if any ch
 - Visual change: grids show blocked cells and faint corridor channels. Gameplay is tighter, not a free-form lattice anymore.
 
 If new Wire Connect reports appear, capture grid size, pair count, and a screenshot — check whether blocked/corridor cells rendered correctly.
+
+## Accessibility verification (limited in this environment)
+
+**Status:** Keyboard focus management, focus trapping in overlays, ARIA labels on puzzle controls, touch-target sizing, safe-area padding, and reduced-motion support have been implemented in code. Browser-based visual/accessibility audits (screen-reader walkthroughs, color-contrast tooling, mobile layout checks) could not be run in this environment and should be validated before release.

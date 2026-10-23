@@ -95,6 +95,12 @@ const PatternCompletion = {
     const options = prMakeEl('div', 'pc-options');
     state.options.forEach(opt => {
       const tile = makeTile(opt, true);
+      tile.setAttribute('role', 'button');
+      tile.tabIndex = 0;
+      tile.setAttribute('aria-label', `${opt.shape} ${opt.color}`);
+      tile.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tile.click(); }
+      });
       tile.addEventListener('click', () => {
         if (opt.shape === state.answer.shape && opt.color === state.answer.color) {
           SFX.correct();
@@ -143,6 +149,7 @@ const HiddenKey = {
     for (let i = 0; i < state.total; i++) {
       const item = prMakeEl('button', 'hk-item');
       item.type = 'button';
+      item.setAttribute('aria-label', 'Item ' + (i + 1));
       const orb = prMakeEl('div', 'hk-orb');
       item.appendChild(orb);
       if (i === state.keyIndex) {
@@ -267,6 +274,10 @@ const RotatingLock = {
 
     for (let i = 0; i < state.dials; i++) {
       const dial = prMakeEl('div', 'rl-dial');
+      dial.setAttribute('role', 'button');
+      dial.tabIndex = 0;
+      dial.setAttribute('aria-label', `Dial ${i + 1}`);
+      dial.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dial.click(); } });
       const ring = prMakeEl('div', 'rl-ring');
       const target = prMakeEl('div', 'rl-mark target');
       const pointer = prMakeEl('div', 'rl-mark pointer');
@@ -465,6 +476,7 @@ const WireConnect = {
       for (let c = 0; c < state.gridSize; c++) {
         const cell = prMakeEl('button', 'wc-cell');
         cell.type = 'button';
+        cell.setAttribute('aria-label', `Cell ${r + 1}, ${c + 1}`);
         cell.addEventListener('click', () => handleClick(r, c));
         grid.appendChild(cell);
         rowEls.push(cell);
@@ -589,6 +601,7 @@ const WeightBalance = {
     state.objects.forEach(obj => {
       const chip = prMakeEl('button', 'wb-chip');
       chip.type = 'button';
+      chip.setAttribute('aria-label', `Weight ${obj.value}`);
       chip.textContent = obj.value;
       chip.addEventListener('click', () => {
         if (state.selected.has(obj.id)) state.selected.delete(obj.id);

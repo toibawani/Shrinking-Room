@@ -40,7 +40,13 @@ This app is not a static site.
 
 Deploy to a Node 22.5+ process host (VPS, Railway, Fly, Render, etc.). Do not deploy `public/` alone to Netlify/Vercel static unless you also run the API somewhere else and rewire auth — out of scope for this repo.
 
-## Rollback
+## Tests
+
+```bash
+npm test
+```
+
+Runs the API and WireConnect solvability suites. Also run `node --check server.js` before deploy.
 
 1. Stop the running process.
 2. Check out the previous known-good commit: `git checkout <sha>`
