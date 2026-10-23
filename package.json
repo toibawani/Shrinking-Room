@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --watch --env-file-if-exists=.env server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "check": "node --check server.js && node --check public/game.js && node --check public/puzzles.js"
   },
   "engines": {
     "node": ">=22.5.0"
