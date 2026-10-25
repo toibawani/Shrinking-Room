@@ -19,6 +19,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/progress', progressRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Shrinking Room running at http://localhost:${PORT}`);
-});
+// The app is exported without listening so tests can bind it to a free port.
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`Shrinking Room running at http://localhost:${server.address().port}`);
+  });
+}
+
+module.exports = app;

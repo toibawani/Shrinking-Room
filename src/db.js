@@ -7,10 +7,13 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const dataDir = path.join(__dirname, '..', 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+// DB_PATH lets the test suite point at a throwaway file instead of the real
+// database in data/. Unset, it behaves exactly as before.
+const dbFile = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'shrinkingroom.db');
+const dbDir = path.dirname(dbFile);
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
-const db = new DatabaseSync(path.join(dataDir, 'shrinkingroom.db'));
+const db = new DatabaseSync(dbFile);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
