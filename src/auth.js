@@ -22,7 +22,26 @@ const COOKIE_OPTS = {
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
+const USERNAME_MIN = 3;
+const USERNAME_MAX = 24;
+const USERNAME_CHARS_RE = /^[A-Za-z0-9_]+$/;
+
+// Usernames are stored and looked up in one canonical form, so "Ada" and
+// "ada" are the same account on both register and login.
+function normalizeUsername(value) {
+  return value.trim().toLowerCase();
+}
+
+// Returns the message to show the player, or null when the name is valid.
+// Never truncates: an over-long name is rejected, not quietly cut to fit.
+function usernameProblem(username) {
+  if (!username) return `Username must be ${USERNAME_MIN} to ${USERNAME_MAX} characters.`;
+  if (username.includes('@')) return 'Use your username, not an email.';
+  if (username.length < USERNAME_MIN) return `Username must be at least ${USERNAME_MIN} characters.`;
+  if (username.length > USERNAME_MAX) return `Username must be ${USERNAME_MAX} characters or fewer.`;
+  if (!USERNAME_CHARS_RE.test(username)) return 'Username can use letters, numbers, and underscores only.';
+  return null;
+}
 
 function issueSession(res, user) {
   const token = jwt.sign({ sub: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
@@ -42,16 +61,18 @@ function requireAuth(req, res, next) {
 }
 
 router.post('/signup', (req, res) => {
-  const { username, password } = req.body || {};
+  const { username: rawUsername, password } = req.body || {};
+  const username = typeof rawUsername === 'string' ? normalizeUsername(rawUsername) : '';
 
-  if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
-    return res.status(400).json({ error: '3-16 characters: letters, numbers, and underscores only.' });
+  const problem = usernameProblem(username);
+  if (problem) {
+    return res.status(400).json({ error: problem });
   }
   if (typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters.' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  const existing = db.prepare('SELECT id FROM users WHERE lower(username) = ?').get(username);
   if (existing) {
     return res.status(409).json({ error: 'That username is already taken.' });
   }
@@ -67,16 +88,17 @@ router.post('/signup', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
-  const { username, password } = req.body || {};
-  if (typeof username !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Invalid username or password.' });
+  const { username: rawUsername, password } = req.body || {};
+  const username = typeof rawUsername === 'string' ? normalizeUsername(rawUsername) : '';
+  if (!username || typeof password !== 'string') {
+    return res.status(401).json({ error: 'Wrong username or password.' });
   }
 
-  const user = db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
+  const user = db.prepare('SELECT id, username, password_hash FROM users WHERE lower(username) = ?').get(username);
   // Deliberately generic error message either way, so we don't leak which
   // usernames exist (basic protection against account enumeration).
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    return res.status(401).json({ error: 'Invalid username or password.' });
+    return res.status(401).json({ error: 'Wrong username or password.' });
   }
 
   issueSession(res, user);
