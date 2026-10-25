@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Shrinking Room</title>
+<meta name="description" content="What Shrinking Room stores, and what it does not.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <main class="page">
+    <h1 class="display">Privacy Policy</h1>
+    <p class="page-meta mono">Last changed 25 October 2026</p>
+
+    <p>Shrinking Room is a small puzzle game. It stores what it needs to keep your progress and nothing else. There is no analytics, no advertising, no tracking pixel, and no third-party script on any page.</p>
+
+    <h2 class="section-heading">If you create an account</h2>
+    <p>The server stores three things:</p>
+    <p><strong>Your username.</strong> Stored in lowercase, 3 to 24 characters of letters, numbers, and underscores. No email address is asked for or stored.</p>
+    <p><strong>A password hash.</strong> Your password is hashed with bcrypt. The password itself is never written to the database and never logged.</p>
+    <p><strong>Your progress.</strong> Best times per room, which room you have unlocked, difficulty, sound and motion settings, and three counters: puzzles solved, rooms cleared, best streak.</p>
+    <p>That is the whole table. There is no profile, no avatar, no location, no device fingerprint.</p>
+
+    <h2 class="section-heading">The session cookie</h2>
+    <p>Signing in sets one cookie named <code>sr_session</code>. It holds a signed token that identifies your account, is readable only by the server (httpOnly), lasts 30 days, and is sent only with requests to this site. Signing out clears it.</p>
+
+    <h2 class="section-heading">If you play as a guest</h2>
+    <p>Guest progress is saved in your own browser's local storage under the key <code>sr_guest_progress_v1</code>. It is never sent to the server. If you later create an account, you can choose to carry over your chapter one best times; that is the only moment guest data leaves the browser, and the server accepts only chapter one rooms with plausible times.</p>
+
+    <h2 class="section-heading">What is not collected</h2>
+    <p>No email, no real name, no birth date, no payment details, no advertising identifiers, no cross-site cookies, no fonts or scripts loaded from another domain. The typefaces are served from this server.</p>
+
+    <h2 class="section-heading">Logs</h2>
+    <p>The application writes errors to its own server log so that breakage can be diagnosed. Error logs contain the request path and the error, never a password. If the game is hosted on a platform, that platform may keep its own short-lived request logs, which this project does not control.</p>
+
+    <h2 class="section-heading">Removing your data</h2>
+    <p>There is no delete button yet. Ask in the project repository and your account row, including its progress, will be removed by hand.</p>
+
+    <h2 class="section-heading">Changes</h2>
+    <p>If what the game stores changes, this page changes with it and the date at the top moves.</p>
+
+    <p class="page-back"><a href="index.html">Back to the room</a></p>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <p>Shrinking Room. A puzzle game by one person.</p>
+    <nav aria-label="Site">
+      <a href="terms.html">Terms of Service</a>
+      <a href="privacy.html" aria-current="page">Privacy Policy</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
