@@ -222,8 +222,8 @@ function startPreviews() {
   }
 }
 
-function showLanding() {
-  switchAuthTab('signin');
+function showLanding(preferredTab) {
+  switchAuthTab(preferredTab === 'signup' ? 'signup' : 'signin');
   switchBaseScreen('screen-landing');
   setAuthChecking(false);
   updateGuestEntry();
@@ -417,7 +417,7 @@ function bindEvents() {
     syncMotionButtons();
     switchBaseScreen('screen-settings');
   });
-  $('btn-settings-signin').addEventListener('click', () => { SFX.click(); showLanding(); });
+  $('btn-settings-signin').addEventListener('click', () => { SFX.click(); showLanding('signup'); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
 
