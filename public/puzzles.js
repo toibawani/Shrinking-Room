@@ -30,7 +30,9 @@ const PUZZLE_HINTS = {
 
 /* ---- Pattern Completion ---- */
 const PC_SHAPES = ['circle', 'square', 'triangle', 'diamond'];
-const PC_COLORS = ['#ffb454', '#4dd8ff', '#ff6b9d', '#8aff6b', '#c084fc'];
+// Okabe-Ito: readable with every common form of colour blindness. Shapes
+// carry the pattern too, so colour is never the only cue.
+const PC_COLORS = ['#0072B2', '#E69F00', '#009E73', '#D55E00', '#CC79A7'];
 
 const PatternCompletion = {
   generate(params) {
@@ -111,7 +113,10 @@ const HiddenKey = {
     const difficulty = Math.max(0.1, Math.min(0.9, params.difficulty !== undefined ? params.difficulty : 0.4));
     const total = decoys + 1;
     const keyIndex = prRandomInt(0, total - 1);
-    const modes = ['tone', 'shadow', 'glow'];
+    // One subtle difference, flat surfaces only: a slightly darker face, a
+    // small offset, or a mark inside the square. Magnitude scales how obvious
+    // it is, so difficulty still means something.
+    const modes = ['tone', 'offset', 'mark'];
     const mode = modes[prRandomInt(0, modes.length - 1)];
     const magnitude = 1 - difficulty;
     return { total, keyIndex, mode, magnitude };
@@ -126,13 +131,18 @@ const HiddenKey = {
       const orb = prMakeEl('div', 'hk-orb');
       item.appendChild(orb);
       if (i === state.keyIndex) {
+        item.classList.add('hk-key');
         if (state.mode === 'tone') {
-          orb.style.filter = `brightness(${1 + (6 + state.magnitude * 26) / 100})`;
-        } else if (state.mode === 'shadow') {
-          const dist = 3 + state.magnitude * 10;
-          orb.style.boxShadow = `${-dist}px ${dist}px 10px rgba(0,0,0,0.55)`;
+          orb.style.background = `rgba(22, 21, 15, ${0.05 + state.magnitude * 0.18})`;
+        } else if (state.mode === 'offset') {
+          const dist = 1 + state.magnitude * 4;
+          orb.style.transform = `translate(${-dist}px, ${dist}px)`;
         } else {
-          orb.style.boxShadow = `0 0 ${10 + state.magnitude * 16}px rgba(255,255,255,${0.08 + state.magnitude * 0.3})`;
+          const mark = prMakeEl('div', 'hk-mark');
+          const size = 4 + state.magnitude * 14;
+          mark.style.width = size + 'px';
+          mark.style.height = size + 'px';
+          orb.appendChild(mark);
         }
       }
       item.addEventListener('click', () => {
@@ -286,7 +296,7 @@ const RotatingLock = {
 };
 
 /* ---- Wire / Pipe Connect ---- */
-const WC_PAIR_COLORS = ['#ffb454', '#4dd8ff', '#ff6b9d', '#8aff6b'];
+const WC_PAIR_COLORS = ['#0072B2', '#E69F00', '#009E73', '#D55E00'];
 
 function wcCarvePath(gridSize, occupied) {
   const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
@@ -378,9 +388,15 @@ const WireConnect = {
           if (data) {
             if (data.kind === 'blocked') {
               el.classList.add('blocked');
+              el.disabled = true;
+              el.removeAttribute('aria-label');
             } else {
+              el.disabled = false;
               el.style.setProperty('--pair-color', WC_PAIR_COLORS[data.pair]);
-              if (data.kind === 'endpoint') el.classList.add('endpoint');
+              if (data.kind === 'endpoint') {
+                el.classList.add('endpoint');
+                el.setAttribute('aria-label', `Wire endpoint ${data.pair + 1}`);
+              }
               else if (data.kind === 'path') el.classList.add('path');
               else if (data.kind === 'corridor') el.classList.add('corridor');
               if (state.connected[data.pair]) el.classList.add('connected');

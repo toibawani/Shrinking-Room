@@ -18,7 +18,7 @@ const LEVELS = [
     timeLimit: 25, shrinkNotches: 4, initialRoomSize: 520, crushRoomSize: 190,
     puzzles: [{ type: 'patternCompletion', params: { length: 3, options: 3, complexity: 1 } }] },
 
-  { id: 2, chapter: 'awakening', name: 'Six of One', subtitle: 'Trust your eyes — barely.',
+  { id: 2, chapter: 'awakening', name: 'Six of One', subtitle: 'Trust your eyes, barely.',
     timeLimit: 22, shrinkNotches: 4, initialRoomSize: 500, crushRoomSize: 182,
     puzzles: [{ type: 'hiddenKey', params: { decoys: 5, difficulty: 0.28 } }] },
 
@@ -42,7 +42,7 @@ const LEVELS = [
     timeLimit: 19, shrinkNotches: 5, initialRoomSize: 465, crushRoomSize: 168,
     puzzles: [{ type: 'weightBalance', params: { objectCount: 5, maxValue: 9 } }] },
 
-  { id: 8, chapter: 'pressure', name: 'Echoes', subtitle: 'The pattern returns — harder.',
+  { id: 8, chapter: 'pressure', name: 'Echoes', subtitle: 'The pattern returns, harder.',
     timeLimit: 17, shrinkNotches: 5, initialRoomSize: 455, crushRoomSize: 162,
     puzzles: [{ type: 'patternCompletion', params: { length: 4, options: 4, complexity: 2 } }] },
 

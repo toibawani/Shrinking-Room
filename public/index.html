@@ -3,119 +3,171 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Shrinking Room — a puzzle game about a room that closes in on you.">
+<meta name="description" content="Shrinking Room: a puzzle game about a room that closes in on you.">
 <title>Shrinking Room</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="amber">
+<body data-motion="full">
 
-<div id="ambient-bg" aria-hidden="true">
-  <div class="ambient-vignette"></div>
-  <div class="ambient-grain"></div>
-</div>
+<a class="skip-link" href="#app">Skip to the game</a>
 
 <div id="app">
 
-<div id="solve-flash" aria-hidden="true"></div>
+  <div id="solve-flash" aria-hidden="true"></div>
 
-  <!-- INTRO / TITLE -->
-  <section id="screen-intro" class="screen" aria-label="Title screen">
-    <div class="intro-inner">
-      <p class="intro-eyebrow">A puzzle game</p>
-      <h1 class="game-title intro-title">SHRINKING<span>ROOM</span></h1>
-      <p class="intro-tagline">The walls are not patient.</p>
-      <div class="intro-room-preview" aria-hidden="true">
-        <div class="intro-room-box"></div>
+  <!-- TITLE -->
+  <section id="screen-intro" class="screen" aria-label="Title">
+    <h1 class="display intro-title">Shrinking<br>Room</h1>
+    <p class="intro-tagline">The walls are not patient.</p>
+    <div class="intro-room" aria-hidden="true">
+      <canvas id="intro-room-canvas"></canvas>
+    </div>
+    <button class="btn btn-primary btn-enter" id="btn-enter-game" type="button">Enter the room</button>
+  </section>
+
+  <!-- SIGN IN -->
+  <section id="screen-landing" class="screen active" aria-labelledby="auth-title">
+    <div class="auth-layout">
+      <div class="auth-heading">
+        <h1 class="display auth-title" id="auth-title">Shrinking<br>Room</h1>
+        <p class="auth-copy">The walls move on a clock. Solve the room before it reaches you.</p>
       </div>
-      <button class="btn btn-primary btn-enter" id="btn-enter-game" type="button">Enter the Room</button>
+
+      <div class="auth-room">
+        <div class="room-frame">
+          <canvas id="auth-room-canvas" aria-hidden="true"></canvas>
+          <p class="room-caption mono">Room 01 &middot; 25.0s</p>
+        </div>
+      </div>
+
+      <div class="auth-column">
+        <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Account" hidden>
+          <button class="auth-tab" id="tab-signin" type="button" role="tab" aria-selected="true" aria-controls="panel-signin" data-tab="signin">Sign in</button>
+          <button class="auth-tab" id="tab-signup" type="button" role="tab" aria-selected="false" aria-controls="panel-signup" data-tab="signup">Create account</button>
+        </div>
+
+        <div class="auth-panel" id="auth-panel">
+          <div class="skeleton" id="auth-skeleton" role="status" aria-label="Checking your session">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line"></div>
+          </div>
+
+          <form class="auth-form" id="panel-signin" role="tabpanel" aria-labelledby="tab-signin" hidden>
+            <div class="field">
+              <label for="signin-username">Username</label>
+              <input id="signin-username" name="username" type="text" autocomplete="username" spellcheck="false" autocapitalize="none" aria-required="true" aria-describedby="signin-username-hint signin-error">
+              <p class="hint" id="signin-username-hint">3 to 24 characters: letters, numbers, underscores.</p>
+            </div>
+            <div class="field">
+              <label for="signin-password">Password</label>
+              <div class="field-row">
+                <input id="signin-password" name="password" type="password" autocomplete="current-password" aria-required="true" aria-describedby="signin-error">
+                <button class="text-button" type="button" data-toggle-password="signin-password" aria-pressed="false">Show password</button>
+              </div>
+            </div>
+            <p class="error" id="signin-error" role="alert"></p>
+            <button class="btn btn-primary btn-block" id="btn-signin" type="submit">Sign in</button>
+          </form>
+
+          <form class="auth-form" id="panel-signup" role="tabpanel" aria-labelledby="tab-signup" hidden>
+            <div class="field">
+              <label for="signup-username">Username</label>
+              <input id="signup-username" name="username" type="text" autocomplete="username" spellcheck="false" autocapitalize="none" aria-required="true" aria-describedby="signup-username-hint signup-error">
+              <p class="hint" id="signup-username-hint">3 to 24 characters: letters, numbers, underscores.</p>
+            </div>
+            <div class="field">
+              <label for="signup-password">Password</label>
+              <div class="field-row">
+                <input id="signup-password" name="password" type="password" autocomplete="new-password" aria-required="true" aria-describedby="signup-password-hint signup-error">
+                <button class="text-button" type="button" data-toggle-password="signup-password" aria-pressed="false">Show password</button>
+              </div>
+              <p class="hint" id="signup-password-hint">10 characters or more.</p>
+            </div>
+            <div class="field">
+              <label for="signup-confirm">Confirm password</label>
+              <input id="signup-confirm" name="confirm" type="password" autocomplete="new-password" aria-required="true" aria-describedby="signup-error">
+            </div>
+            <p class="error" id="signup-error" role="alert"></p>
+            <button class="btn btn-primary btn-block" id="btn-signup" type="submit">Create account</button>
+          </form>
+        </div>
+
+        <button class="btn btn-secondary auth-guest" id="btn-guest" type="button" hidden>Play chapter one without an account</button>
+        <p class="auth-note" id="auth-note" hidden>Guest progress stays in this browser. The server never sees it.</p>
+      </div>
     </div>
   </section>
 
-  <!-- LANDING / SIGN IN -->
-  <section id="screen-landing" class="screen active">
-    <div class="terminal-card">
-      <p class="terminal-eyebrow">Account</p>
-      <h1 class="game-title small">SHRINKING<span>ROOM</span></h1>
-
-      <div class="auth-tabs" id="auth-tabs" role="tablist">
-        <button class="auth-tab active" id="tab-signin" type="button" role="tab" aria-selected="true" data-tab="signin">Sign In</button>
-        <button class="auth-tab" id="tab-signup" type="button" role="tab" aria-selected="false" data-tab="signup">Sign Up</button>
-      </div>
-
-      <form class="terminal-panel" id="panel-signin" autocomplete="on">
-        <label class="terminal-label" for="signin-username">Username</label>
-        <input class="terminal-input" id="signin-username" type="text" autocomplete="username" aria-describedby="signin-error" required>
-        <label class="terminal-label" for="signin-password">Password</label>
-        <input class="terminal-input" id="signin-password" type="password" autocomplete="current-password" required>
-        <p class="terminal-error" id="signin-error" role="alert"></p>
-        <button class="btn btn-primary" id="btn-signin" type="submit">Sign In</button>
-      </form>
-
-      <form class="terminal-panel" id="panel-signup" autocomplete="on" style="display:none;">
-        <label class="terminal-label" for="signup-username">Username</label>
-        <input class="terminal-input" id="signup-username" type="text" autocomplete="username" aria-describedby="signup-username-hint signup-error" required>
-        <p class="terminal-hint" id="signup-username-hint">3 to 24 characters: letters, numbers, underscores.</p>
-        <label class="terminal-label" for="signup-password">Password</label>
-        <input class="terminal-input" id="signup-password" type="password" placeholder="At least 6 characters" autocomplete="new-password" required>
-        <label class="terminal-label" for="signup-confirm">Confirm password</label>
-        <input class="terminal-input" id="signup-confirm" type="password" autocomplete="new-password" required>
-        <p class="terminal-error" id="signup-error" role="alert"></p>
-        <button class="btn btn-primary" id="btn-signup" type="submit">Create Account</button>
-      </form>
-
-      <p class="terminal-note">Progress is saved to your account on this server.</p>
+  <!-- SESSION CHECK -->
+  <section id="screen-loading" class="screen" aria-live="polite" aria-label="Restoring your session">
+    <div class="skeleton" aria-hidden="true">
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line short"></div>
+      <div class="skeleton-line"></div>
     </div>
-  </section>
-
-  <section id="screen-loading" class="screen" aria-live="polite">
-    <div class="loading-spinner" aria-hidden="true"></div>
-    <p class="terminal-eyebrow">Restoring session&hellip;</p>
   </section>
 
   <!-- TUTORIAL -->
-  <section id="screen-tutorial" class="screen overlay" role="dialog" aria-labelledby="tutorial-title">
+  <section id="screen-tutorial" class="screen overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
     <div class="overlay-card tutorial-card">
       <button class="tutorial-skip" id="btn-skip-tutorial" type="button">Skip</button>
       <p class="tutorial-step-label" id="tutorial-step-label">Step 1 of 4</p>
       <h2 id="tutorial-title">The room is shrinking.</h2>
       <p class="tutorial-body" id="tutorial-body"></p>
-      <div class="tutorial-dots" id="tutorial-dots" aria-hidden="true"></div>
       <button class="btn btn-primary" id="btn-tutorial-next" type="button">Next</button>
+    </div>
+  </section>
+
+  <!-- CARRY GUEST PROGRESS -->
+  <section id="screen-carry" class="screen overlay" role="dialog" aria-modal="true" aria-labelledby="carry-title">
+    <div class="overlay-card">
+      <h2 id="carry-title">Bring your rooms with you?</h2>
+      <p class="tutorial-body" id="carry-body"></p>
+      <button class="btn btn-primary" id="btn-carry-yes" type="button">Carry them over</button>
+      <button class="btn btn-secondary" id="btn-carry-no" type="button">Start fresh</button>
     </div>
   </section>
 
   <!-- MAIN MENU -->
   <section id="screen-menu" class="screen">
-    <div class="menu-glow" aria-hidden="true"></div>
-    <p class="terminal-eyebrow" id="menu-player-tag">OPERATOR</p>
-    <h1 class="game-title">SHRINKING<span>ROOM</span></h1>
-    <p class="game-tagline">The walls are not patient.</p>
+    <div class="menu-layout">
+      <div class="menu-main">
+        <h1 class="display menu-title">Shrinking<br>Room</h1>
+        <p class="menu-tagline">The walls are not patient.</p>
 
-    <div class="menu-progress" id="menu-progress" aria-label="Game progress">
-      <div class="menu-progress-bar"><div class="menu-progress-fill" id="menu-progress-fill"></div></div>
-      <p class="menu-progress-label" id="menu-progress-label">0 of 12 rooms cleared</p>
+        <div class="menu-progress" id="menu-progress" aria-label="Game progress">
+          <div class="menu-progress-bar"><div class="menu-progress-fill" id="menu-progress-fill"></div></div>
+          <p class="menu-progress-label" id="menu-progress-label">Loading your progress</p>
+        </div>
+
+        <div class="menu-buttons">
+          <button class="btn btn-primary" id="btn-play" type="button">Begin</button>
+          <button class="btn btn-secondary" id="btn-level-select" type="button">Rooms</button>
+          <button class="btn btn-secondary" id="btn-how-to-play" type="button">How to play</button>
+          <button class="btn btn-secondary" id="btn-settings" type="button">Settings</button>
+          <button class="text-button menu-sound" id="btn-sound-toggle" type="button" aria-pressed="true">Sound on</button>
+        </div>
+
+        <p class="menu-stats" id="menu-stats"></p>
+      </div>
+
+      <div class="menu-room">
+        <div class="room-frame">
+          <canvas id="menu-room-canvas" aria-hidden="true"></canvas>
+          <p class="room-caption mono" id="menu-room-caption">Next room</p>
+        </div>
+      </div>
     </div>
-
-    <div class="menu-buttons">
-      <button class="btn btn-primary" id="btn-play">Continue</button>
-      <button class="btn btn-secondary" id="btn-level-select">Rooms</button>
-      <button class="btn btn-secondary" id="btn-how-to-play">How to Play</button>
-      <button class="btn btn-secondary" id="btn-settings">Settings</button>
-      <button class="hud-pause menu-sound" id="btn-sound-toggle" type="button" aria-label="Toggle sound">🔊</button>
-    </div>
-
-    <p class="menu-footer" id="menu-stats"></p>
   </section>
 
   <!-- LEVEL SELECT -->
   <section id="screen-level-select" class="screen">
-    <h2 class="screen-heading">Select a Room</h2>
+    <h2 class="screen-heading">Rooms</h2>
     <p class="level-select-streak" id="level-select-streak"></p>
     <div class="level-chapters" id="level-chapters"></div>
-    <button class="btn btn-secondary" id="btn-back-from-levels">Back</button>
+    <button class="btn btn-secondary" id="btn-back-from-levels" type="button">Back</button>
   </section>
 
   <!-- SETTINGS -->
@@ -123,56 +175,55 @@
     <h2 class="screen-heading">Settings</h2>
 
     <div class="settings-block">
-      <h3>Difficulty</h3>
-      <p class="settings-hint">Affects time limits only.</p>
-      <div class="difficulty-toggle" id="difficulty-toggle">
-        <button class="diff-btn" data-difficulty="easy" type="button">Easy</button>
-        <button class="diff-btn" data-difficulty="normal" type="button">Normal</button>
-        <button class="diff-btn" data-difficulty="hard" type="button">Hard</button>
+      <h3 class="section-heading">Difficulty</h3>
+      <p class="hint">Changes the time limit only.</p>
+      <div class="seg" id="difficulty-toggle">
+        <button class="seg-btn" data-difficulty="easy" type="button">Easy</button>
+        <button class="seg-btn" data-difficulty="normal" type="button">Normal</button>
+        <button class="seg-btn" data-difficulty="hard" type="button">Hard</button>
       </div>
     </div>
 
     <div class="settings-block">
-      <h3>Sound</h3>
-      <div class="difficulty-toggle" id="sound-toggle">
-        <button class="diff-btn" data-sound="on" type="button">On</button>
-        <button class="diff-btn" data-sound="off" type="button">Off</button>
+      <h3 class="section-heading">Sound</h3>
+      <div class="seg" id="sound-toggle">
+        <button class="seg-btn" data-sound="on" type="button">On</button>
+        <button class="seg-btn" data-sound="off" type="button">Off</button>
       </div>
     </div>
 
     <div class="settings-block">
-      <h3>Motion</h3>
-      <p class="settings-hint">Reduce screen shake and flash effects.</p>
-      <div class="difficulty-toggle" id="motion-toggle">
-        <button class="diff-btn" data-motion="full" type="button">Full</button>
-        <button class="diff-btn" data-motion="reduced" type="button">Reduced</button>
+      <h3 class="section-heading">Motion</h3>
+      <p class="hint">Rooms open and close with less movement.</p>
+      <div class="seg" id="motion-toggle">
+        <button class="seg-btn" data-motion="full" type="button">Full</button>
+        <button class="seg-btn" data-motion="reduced" type="button">Reduced</button>
       </div>
     </div>
 
     <div class="settings-block">
-      <h3>Account</h3>
-      <p class="settings-hint" id="settings-username">Signed in</p>
-      <button class="btn btn-secondary btn-danger-outline" id="btn-reset-progress" type="button">Reset Progress</button>
-      <button class="btn btn-secondary" id="btn-logout" type="button">Log Out</button>
+      <h3 class="section-heading">Account</h3>
+      <p class="hint" id="settings-username">Not signed in</p>
+      <div class="settings-actions">
+        <button class="btn btn-danger" id="btn-reset-progress" type="button">Reset progress</button>
+        <button class="btn btn-secondary" id="btn-logout" type="button">Sign out</button>
+        <button class="btn btn-secondary" id="btn-settings-signin" type="button" hidden>Create an account</button>
+      </div>
     </div>
 
-    <div class="settings-block">
-      <h3>Room Theme <span class="settings-hint">(unlocked by streaks)</span></h3>
-      <div class="theme-swatches" id="theme-swatches"></div>
-    </div>
-
-    <button class="btn btn-secondary" id="btn-back-from-settings">Back</button>
+    <button class="btn btn-secondary" id="btn-back-from-settings" type="button">Back</button>
   </section>
 
-  <!-- GAME SCREEN -->
+  <!-- GAME -->
   <section id="screen-game" class="screen">
-    <div id="hud" role="toolbar" aria-label="Game HUD">
+    <div id="hud" role="toolbar" aria-label="Game">
       <div class="hud-left">
         <div class="hud-item">
           <span class="hud-label">Room</span>
           <span class="hud-value" id="hud-level">1</span>
         </div>
         <div class="hud-item hud-chapter">
+          <span class="hud-label">Chapter</span>
           <span class="hud-chapter-name" id="hud-chapter">Awakening</span>
         </div>
       </div>
@@ -196,14 +247,14 @@
           <span class="hud-label">Streak</span>
           <span class="hud-value" id="hud-streak">0</span>
         </div>
-        <button class="hud-pause" id="btn-pause" type="button" aria-label="Pause">❙❙</button>
+        <button class="hud-pause" id="btn-pause" type="button" aria-label="Pause">II</button>
       </div>
     </div>
 
     <div class="stage-scaler" id="stage-scaler">
       <div class="stage-frame" id="stage-frame">
         <div class="stage-shake" id="stage-shake">
-          <canvas id="game-canvas" width="600" height="600" aria-label="Shrinking room"></canvas>
+          <canvas id="game-canvas" width="600" height="600" aria-label="The shrinking room"></canvas>
           <div id="puzzle-layer"></div>
         </div>
       </div>
@@ -214,58 +265,68 @@
   </section>
 
   <!-- PAUSE -->
-  <section id="screen-pause" class="screen overlay" role="dialog" aria-labelledby="pause-title">
+  <section id="screen-pause" class="screen overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
     <div class="overlay-card">
       <h2 id="pause-title">Paused</h2>
-      <p class="overlay-stat">Room <span id="pause-room-num">1</span> &mdash; <span id="pause-room-name">First Light</span></p>
-      <button class="btn btn-primary" id="btn-resume">Resume</button>
-      <button class="btn btn-secondary" id="btn-restart-from-pause">Restart Room</button>
-      <button class="btn btn-secondary" id="btn-menu-from-pause">Main Menu</button>
-      <p class="overlay-hint">Press Esc to resume</p>
+      <p class="overlay-stat">Room <span id="pause-room-num">1</span>: <span id="pause-room-name">First Light</span></p>
+      <button class="btn btn-primary" id="btn-resume" type="button">Resume</button>
+      <button class="btn btn-secondary" id="btn-restart-from-pause" type="button">Restart room</button>
+      <button class="btn btn-secondary" id="btn-menu-from-pause" type="button">Main menu</button>
+      <p class="overlay-hint">Esc to resume</p>
     </div>
   </section>
 
   <!-- GAME OVER -->
-  <section id="screen-game-over" class="screen overlay" role="dialog" aria-labelledby="gameover-title">
+  <section id="screen-game-over" class="screen overlay" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
     <div class="overlay-card overlay-danger">
-      <h2 id="gameover-title">Crushed.</h2>
+      <h2 id="gameover-title">Crushed</h2>
       <p class="overlay-stat">You survived <span id="game-over-time">0</span>s before the walls closed in.</p>
       <p class="overlay-note" id="game-over-tip"></p>
-      <button class="btn btn-primary" id="btn-retry">Try Again</button>
-      <button class="btn btn-secondary" id="btn-menu-from-gameover">Main Menu</button>
+      <button class="btn btn-primary" id="btn-retry" type="button">Try again</button>
+      <button class="btn btn-secondary" id="btn-menu-from-gameover" type="button">Main menu</button>
     </div>
   </section>
 
-  <!-- LEVEL COMPLETE -->
-  <section id="screen-level-complete" class="screen overlay" role="dialog" aria-labelledby="complete-title">
-    <div class="overlay-card overlay-success">
-      <h2 id="complete-title">Room Cleared</h2>
+  <!-- ROOM CLEARED -->
+  <section id="screen-level-complete" class="screen overlay" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+    <div class="overlay-card">
+      <h2 id="complete-title">Room cleared</h2>
       <p class="overlay-stat" id="complete-room-name">First Light</p>
       <p class="overlay-stat">Time: <span id="complete-time">0</span>s</p>
       <p class="overlay-record" id="complete-record" hidden>Fastest yet.</p>
       <p class="overlay-stat">Streak: <span id="complete-combo">0</span></p>
-      <p class="overlay-note" id="complete-unlock" hidden></p>
-      <button class="btn btn-primary" id="btn-next-level">Next Room</button>
-      <button class="btn btn-secondary" id="btn-menu-from-complete">Main Menu</button>
+      <p class="overlay-note" id="complete-guest" hidden>That is the end of chapter one. Create an account to keep going.</p>
+      <button class="btn btn-primary" id="btn-next-level" type="button">Next room</button>
+      <button class="btn btn-secondary" id="btn-menu-from-complete" type="button">Main menu</button>
     </div>
   </section>
 
   <!-- ENDGAME -->
-  <section id="screen-endgame" class="screen overlay" role="dialog" aria-labelledby="endgame-title">
-    <div class="overlay-card overlay-endgame">
-      <p class="endgame-eyebrow">All rooms cleared</p>
-      <h2 id="endgame-title">You Escaped.</h2>
-      <p class="endgame-body">Twelve shrinking rooms. Every wall pushed inward. You solved them all.</p>
+  <section id="screen-endgame" class="screen overlay" role="dialog" aria-modal="true" aria-labelledby="endgame-title">
+    <div class="overlay-card">
+      <h2 id="endgame-title">You escaped</h2>
+      <p class="tutorial-body">Twelve shrinking rooms. Every wall pushed inward. You solved them all.</p>
       <div class="endgame-stats" id="endgame-stats"></div>
-      <button class="btn btn-primary" id="btn-replay-endgame">Play Again</button>
-      <button class="btn btn-secondary" id="btn-menu-from-endgame">Main Menu</button>
+      <button class="btn btn-primary" id="btn-replay-endgame" type="button">Play again</button>
+      <button class="btn btn-secondary" id="btn-menu-from-endgame" type="button">Main menu</button>
     </div>
   </section>
 
 </div>
 
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <p>Shrinking Room. A puzzle game by one person.</p>
+    <nav aria-label="Site">
+      <a href="terms.html">Terms of Service</a>
+      <a href="privacy.html">Privacy Policy</a>
+    </nav>
+  </div>
+</footer>
+
 <script src="audio.js"></script>
 <script src="levels.js"></script>
+<script src="room.js"></script>
 <script src="puzzles.js"></script>
 <script src="game.js"></script>
 </body>

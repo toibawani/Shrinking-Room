@@ -1,7 +1,6 @@
 // game.js — Core loop, navigation, shrinking-room canvas, persistence.
 
 const DIFFICULTY_MULTIPLIERS = { easy: 1.35, normal: 1.0, hard: 0.72 };
-const THEME_UNLOCK_COMBOS = { cyan: 3, violet: 6, emerald: 9 };
 const STAGE_BASE = 600;
 const WARNING_THRESHOLD = 5;
 
@@ -13,15 +12,22 @@ const TUTORIAL_STEPS = [
 ];
 
 const GAME_OVER_TIPS = [
-  'Watch the compression bar — it shows how close the walls are.',
+  'Watch the compression bar. It shows how close the walls are.',
   'Hints appear below the room. Use them.',
   'Wrong answers cost time, not lives. Keep trying.',
   'On Easy difficulty you get more time per room.',
 ];
 
+const CHAPTER_ONE_IDS = LEVELS.filter(level => level.chapter === CHAPTERS[0].id).map(level => level.id);
+const GUEST_MAX_LEVEL = CHAPTER_ONE_IDS[CHAPTER_ONE_IDS.length - 1];
+const GUEST_KEY = 'sr_guest_progress_v1';
+
 const GameState = {
   baseScreen: 'screen-landing',
   username: null,
+  isGuest: false,
+  authTab: 'signin',
+  previews: [],
   currentLevelIndex: 0,
   puzzleIndexInLevel: 0,
   combo: 0,
@@ -59,11 +65,48 @@ function defaultPersisted() {
 }
 let persisted = defaultPersisted();
 
+// Guest progress lives in this browser only. The server never reads it, and
+// the only thing it can ever receive is chapter one best times, re-checked on
+// the server.
+function readGuestProgress() {
+  try {
+    const raw = localStorage.getItem(GUEST_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return Object.assign(defaultPersisted(), data, {
+      stats: Object.assign(defaultPersisted().stats, data.stats || {}),
+    });
+  } catch (e) {
+    return null;
+  }
+}
+function hasGuestSave() {
+  const guest = readGuestProgress();
+  return !!guest && Object.keys(guest.bestTimes || {}).some(id => CHAPTER_ONE_IDS.includes(Number(id)));
+}
+function clearGuestSave() {
+  try { localStorage.removeItem(GUEST_KEY); } catch (e) { /* private mode */ }
+}
+function guestChapterOneTimes() {
+  const guest = readGuestProgress();
+  if (!guest) return {};
+  const times = {};
+  CHAPTER_ONE_IDS.forEach(id => {
+    const value = Number(guest.bestTimes && guest.bestTimes[id]);
+    if (Number.isFinite(value) && value > 0) times[id] = value;
+  });
+  return times;
+}
+
 async function apiFetch(url, options) {
-  const res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options));
-  let data = null;
-  try { data = await res.json(); } catch (e) { /* empty body ok */ }
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options));
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* empty body ok */ }
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: null };
+  }
 }
 
 async function fetchMe() {
@@ -78,6 +121,11 @@ async function fetchProgress() {
   });
 }
 async function savePersisted() {
+  if (GameState.isGuest) {
+    try { localStorage.setItem(GUEST_KEY, JSON.stringify(persisted)); }
+    catch (e) { console.warn('Could not save guest progress:', e); }
+    return;
+  }
   try { await apiFetch('/api/progress', { method: 'PUT', body: JSON.stringify(persisted) }); }
   catch (e) { console.warn('Could not save progress:', e); }
 }
@@ -85,6 +133,7 @@ async function savePersisted() {
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 24;
 const USERNAME_CHARS_RE = /^[A-Za-z0-9_]+$/;
+const PASSWORD_MIN = 10;
 
 // Mirrors the rule in src/auth.js. Nothing is truncated: an over-long name is
 // refused with a message so the player can see what they actually typed.
@@ -116,10 +165,13 @@ async function signIn(username, password) {
   return apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
 }
 async function logOut() {
-  await apiFetch('/api/auth/logout', { method: 'POST' });
+  if (!GameState.isGuest) {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+  }
+  GameState.isGuest = false;
   GameState.username = null;
   persisted = defaultPersisted();
-  switchBaseScreen('screen-landing');
+  showLanding();
 }
 
 async function resetProgress() {
@@ -131,11 +183,11 @@ async function resetProgress() {
     hasSeenTutorial: true,
     hasSeenIntro: true,
   };
-  await apiFetch('/api/progress/reset', { method: 'POST' });
+  if (GameState.isGuest) clearGuestSave();
+  else await apiFetch('/api/progress/reset', { method: 'POST' });
   persisted = Object.assign(defaultPersisted(), keep);
   GameState.combo = 0;
   savePersisted();
-  renderThemeSwatches();
   renderLevelGrid();
   updateMenuStats();
   SFX.uiToggle();
@@ -147,30 +199,97 @@ function isMotionReduced() {
 
 function applyMotionPref() {
   document.body.dataset.motion = persisted.motionReduced ? 'reduced' : 'full';
+  startPreviews();
 }
 
-function renderThemeSwatches() {
-  const wrap = $('theme-swatches');
-  wrap.innerHTML = '';
-  ['amber', 'cyan', 'violet', 'emerald'].forEach(theme => {
-    const unlocked = persisted.unlockedThemes.includes(theme);
-    const swatch = document.createElement('button');
-    swatch.className = 'theme-swatch theme-' + theme;
-    if (theme === persisted.currentTheme) swatch.classList.add('active');
-    if (!unlocked) swatch.classList.add('locked');
-    swatch.disabled = !unlocked;
-    swatch.setAttribute('aria-label', theme + ' theme');
-    if (unlocked) {
-      swatch.addEventListener('click', () => {
-        persisted.currentTheme = theme;
-        document.body.dataset.theme = theme;
-        savePersisted();
-        renderThemeSwatches();
-        SFX.uiToggle();
-      });
-    }
-    wrap.appendChild(swatch);
-  });
+// The auth screen and the title screen both run the real room renderer.
+function startPreviews() {
+  GameState.previews.forEach(preview => preview.destroy());
+  GameState.previews = [];
+  const reduced = isMotionReduced();
+  const base = { initialSize: 520, crushSize: 190, stage: 600, notches: 4, reduced };
+  const authCanvas = $('auth-room-canvas');
+  if (authCanvas && !$('screen-landing').hidden) {
+    GameState.previews.push(RoomRender.mountPreview(authCanvas, base));
+  }
+  const introCanvas = $('intro-room-canvas');
+  if (introCanvas) {
+    GameState.previews.push(RoomRender.mountPreview(introCanvas, Object.assign({}, base, { duration: 11000, hold: 1800 })));
+  }
+  const menuCanvas = $('menu-room-canvas');
+  if (menuCanvas && $('screen-menu').classList.contains('active')) {
+    GameState.previews.push(RoomRender.mountPreview(menuCanvas, Object.assign({}, base, { duration: 10000 })));
+  }
+}
+
+function showLanding() {
+  switchAuthTab('signin');
+  switchBaseScreen('screen-landing');
+  setAuthChecking(false);
+  updateGuestEntry();
+  startPreviews();
+}
+
+function updateGuestEntry() {
+  const button = $('btn-guest');
+  if (!button) return;
+  button.textContent = hasGuestSave()
+    ? 'Continue chapter one as a guest'
+    : 'Play chapter one without an account';
+  button.hidden = GameState.isGuest;
+  $('auth-note').hidden = GameState.isGuest;
+}
+
+function setAuthChecking(checking) {
+  $('auth-skeleton').hidden = !checking;
+  $('auth-tabs').hidden = checking;
+  $('btn-guest').hidden = checking || GameState.isGuest;
+  $('auth-note').hidden = checking || GameState.isGuest;
+  $('panel-signin').hidden = checking || GameState.authTab !== 'signin';
+  $('panel-signup').hidden = checking || GameState.authTab !== 'signup';
+}
+
+// The panel is a room. A failed attempt tightens it.
+let tightenTimer = null;
+function roomReject() {
+  const panel = $('auth-panel');
+  panel.classList.remove('room-tighten');
+  void panel.offsetWidth;
+  panel.classList.add('room-tighten');
+  clearTimeout(tightenTimer);
+  tightenTimer = setTimeout(() => panel.classList.remove('room-tighten'), 600);
+}
+
+function applyPersistedSettings() {
+  applyMotionPref();
+  SFX.setMuted(!persisted.soundOn);
+  syncDifficultyButtons();
+  syncSoundButtons();
+  syncMotionButtons();
+  $('settings-username').textContent = GameState.isGuest
+    ? 'Playing as a guest. Progress stays in this browser.'
+    : `Signed in as ${GameState.username}`;
+  $('btn-logout').hidden = GameState.isGuest;
+  $('btn-settings-signin').hidden = !GameState.isGuest;
+  $('btn-reset-progress').hidden = GameState.isGuest;
+}
+
+function startGuest() {
+  SFX.unlock();
+  SFX.click();
+  GameState.isGuest = true;
+  GameState.username = null;
+  persisted = readGuestProgress() || defaultPersisted();
+  applyPersistedSettings();
+  renderLevelGrid();
+  updateMenuStats();
+  finishAuthNavigation();
+}
+
+function finishAuthNavigation() {
+  if (!persisted.hasSeenIntro) { switchBaseScreen('screen-intro'); startPreviews(); return; }
+  if (!persisted.hasSeenTutorial) { openTutorial(true); return; }
+  switchBaseScreen('screen-menu');
 }
 
 function formatTime(s) { return Math.max(0, s).toFixed(1); }
@@ -183,22 +302,11 @@ function switchBaseScreen(id) {
   });
   $(id).classList.add('active');
   GameState.baseScreen = id;
-  if (id === 'screen-menu') updateMenuStats();
+  if (id === 'screen-menu') { updateMenuStats(); startPreviews(); }
 }
 
 function showOverlay(id) { $(id).classList.add('active'); }
 function hideOverlay(id) { $(id).classList.remove('active'); }
-
-const LEVEL_ACCENTS = ['#e8457a', '#2ee8b6', '#d4e847', '#a070ff', '#ff7744', '#44c8ff', '#8aff6b', '#ff6688', '#5cffe0', '#ffcf5c', '#c080ff', '#6dff8a'];
-const LEVEL_ACCENT_TOKENS = ['--accent', '--success', '--volt'];
-function levelAccent(levelId) {
-  const idx = (levelId - 1) % LEVEL_ACCENTS.length;
-  if (idx < LEVEL_ACCENT_TOKENS.length) {
-    const v = getCSSVar(LEVEL_ACCENT_TOKENS[idx]);
-    if (v) return v;
-  }
-  return LEVEL_ACCENTS[idx];
-}
 
 function updateMenuStats() {
   const cleared = Object.keys(persisted.bestTimes).length;
@@ -210,10 +318,15 @@ function updateMenuStats() {
   const parts = [];
   if (stats.bestStreak > 0) parts.push(`Best streak: ${stats.bestStreak}`);
   if (stats.puzzlesSolved > 0) parts.push(`${stats.puzzlesSolved} puzzles solved`);
-  $('menu-stats').textContent = parts.join(' · ') || 'Clear rooms fast to build a streak';
+  $('menu-stats').textContent = GameState.isGuest
+    ? 'Guest save. Nothing leaves this browser.'
+    : (parts.join(' · ') || 'Clear rooms fast to build a streak');
 
   const playLabel = cleared >= total ? 'Replay' : cleared > 0 ? 'Continue' : 'Begin';
   $('btn-play').textContent = playLabel;
+
+  const nextLevel = LEVELS[Math.min(persisted.unlockedLevel - 1, LEVELS.length - 1)];
+  $('menu-room-caption').textContent = `Room ${String(nextLevel.id).padStart(2, '0')} \u00b7 ${getEffectiveTimeLimit(nextLevel).toFixed(0)}s`;
 }
 
 function renderLevelGrid() {
@@ -245,15 +358,16 @@ function renderLevelGrid() {
       const locked = level.id > persisted.unlockedLevel;
       const cleared = persisted.bestTimes[level.id] !== undefined;
       const card = document.createElement('button');
-      card.className = 'level-card' + (locked ? ' locked' : '') + (cleared ? ' cleared' : '');
+      card.className = 'level-card' + (locked ? ' locked' : '');
       card.disabled = locked;
-      if (!locked) card.style.setProperty('--level-accent', levelAccent(level.id));
 
       const best = persisted.bestTimes[level.id];
       const prevName = i > 0 ? LEVELS[i - 1].name : '';
+      const guestLocked = GameState.isGuest && level.id > GUEST_MAX_LEVEL;
+      const lockedLabel = guestLocked ? 'Account required' : `Clear "${prevName}"`;
       card.innerHTML = locked
-        ? `<span class="level-num">${level.id}</span><span class="level-name">Clear "${prevName}"</span>`
-        : `<span class="level-num">${level.id}</span><span class="level-name">${level.name}</span><span class="level-best">${best !== undefined ? best.toFixed(1) + 's' : '—'}</span>`;
+        ? `<span class="level-num">${level.id}</span><span class="level-name">${level.name}</span><span class="level-best">${lockedLabel}</span>`
+        : `<span class="level-num">${level.id}</span><span class="level-name">${level.name}</span><span class="level-best">${best !== undefined ? best.toFixed(1) + 's' : 'Not cleared'}</span>`;
 
       if (!locked) card.addEventListener('click', () => { SFX.click(); startLevel(i); });
       grid.appendChild(card);
@@ -298,12 +412,12 @@ function bindEvents() {
   });
   $('btn-level-select').addEventListener('click', () => { renderLevelGrid(); switchBaseScreen('screen-level-select'); });
   $('btn-settings').addEventListener('click', () => {
-    renderThemeSwatches();
     syncDifficultyButtons();
     syncSoundButtons();
     syncMotionButtons();
     switchBaseScreen('screen-settings');
   });
+  $('btn-settings-signin').addEventListener('click', () => { SFX.click(); showLanding(); });
   $('btn-back-from-levels').addEventListener('click', () => switchBaseScreen('screen-menu'));
   $('btn-back-from-settings').addEventListener('click', () => switchBaseScreen('screen-menu'));
 
@@ -331,6 +445,7 @@ function bindEvents() {
 
   $('btn-next-level').addEventListener('click', () => {
     hideOverlay('screen-level-complete');
+    if (GameState.isGuest && getCurrentLevelData().id >= GUEST_MAX_LEVEL) { showLanding(); return; }
     const next = GameState.currentLevelIndex + 1;
     if (next >= LEVELS.length) showEndgame();
     else if (next < persisted.unlockedLevel) startLevel(next);
@@ -355,16 +470,40 @@ function bindEvents() {
   bindUsernameField('signin-username', 'signin-error');
   bindUsernameField('signup-username', 'signup-error');
 
+  document.querySelectorAll('[data-toggle-password]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = $(button.dataset.togglePassword);
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      button.textContent = showing ? 'Show password' : 'Hide password';
+      button.setAttribute('aria-pressed', String(!showing));
+    });
+  });
+
+  $('btn-guest').addEventListener('click', startGuest);
+  $('btn-carry-yes').addEventListener('click', () => decideCarry(true));
+  $('btn-carry-no').addEventListener('click', () => decideCarry(false));
+
   $('panel-signin').addEventListener('submit', async (e) => {
     e.preventDefault();
     SFX.unlock();
     const username = $('signin-username').value.trim();
     const password = $('signin-password').value;
     $('signin-error').textContent = '';
+    $('signin-username').removeAttribute('aria-invalid');
     const problem = usernameProblem(username);
-    if (problem) { $('signin-error').textContent = problem; $('signin-username').focus(); return; }
+    if (problem) {
+      $('signin-error').textContent = problem;
+      $('signin-username').setAttribute('aria-invalid', 'true');
+      $('signin-username').focus();
+      return;
+    }
     const { ok, data } = await signIn(username, password);
-    if (!ok) { $('signin-error').textContent = data.error || 'Could not reach the room.'; return; }
+    if (!ok) {
+      $('signin-error').textContent = (data && data.error) || 'Could not reach the room.';
+      roomReject();
+      return;
+    }
     await afterAuthSuccess(data.username);
   });
 
@@ -375,12 +514,33 @@ function bindEvents() {
     const password = $('signup-password').value;
     const confirm = $('signup-confirm').value;
     $('signup-error').textContent = '';
+    $('signup-username').removeAttribute('aria-invalid');
+    $('signup-password').removeAttribute('aria-invalid');
     const problem = usernameProblem(username);
-    if (problem) { $('signup-error').textContent = problem; $('signup-username').focus(); return; }
-    if (password !== confirm) { $('signup-error').textContent = 'Passwords do not match.'; return; }
+    if (problem) {
+      $('signup-error').textContent = problem;
+      $('signup-username').setAttribute('aria-invalid', 'true');
+      $('signup-username').focus();
+      return;
+    }
+    if (password.length < PASSWORD_MIN) {
+      $('signup-error').textContent = `Passwords need ${PASSWORD_MIN} characters or more.`;
+      $('signup-password').setAttribute('aria-invalid', 'true');
+      $('signup-password').focus();
+      return;
+    }
+    if (password !== confirm) {
+      $('signup-error').textContent = 'Passwords do not match.';
+      $('signup-confirm').focus();
+      return;
+    }
     const { ok, data } = await signUp(username, password);
-    if (!ok) { $('signup-error').textContent = data.error || 'Could not reach the room.'; return; }
-    await afterAuthSuccess(data.username);
+    if (!ok) {
+      $('signup-error').textContent = (data && data.error) || 'Could not reach the room.';
+      roomReject();
+      return;
+    }
+    await afterAuthSuccess(data.username, { offerCarry: true });
   });
 
   $('btn-how-to-play').addEventListener('click', () => openTutorial(false));
@@ -426,18 +586,10 @@ function bindEvents() {
     }
   });
 
-  window.addEventListener('resize', updateStageScale);
-}
-
-function updateStageScale() {
-  const scaler = $('stage-scaler');
-  if (!scaler) return;
-  const maxW = Math.min(window.innerWidth - 40, 600);
-  const scale = Math.min(1, maxW / STAGE_BASE);
-  scaler.style.setProperty('--stage-scale', scale.toFixed(3));
 }
 
 function startLevel(index) {
+  if (GameState.isGuest && LEVELS[index].id > GUEST_MAX_LEVEL) { showLanding(); return; }
   destroyActivePuzzle();
   GameState.currentLevelIndex = index;
   GameState.elapsed = 0;
@@ -453,7 +605,7 @@ function startLevel(index) {
   $('hud-level').textContent = level.id;
   $('hud-chapter').textContent = getLevelChapter(level).name;
   const best = persisted.bestTimes[level.id];
-  $('hud-best').textContent = best !== undefined ? best.toFixed(1) + 's' : '—';
+  $('hud-best').textContent = best !== undefined ? best.toFixed(1) + 's' : 'None';
 
   const streakWrap = $('hud-streak-wrap');
   if (GameState.combo > 0) {
@@ -469,7 +621,7 @@ function startLevel(index) {
   $('compression-fill').classList.remove('high');
 
   switchBaseScreen('screen-game');
-  updateStageScale();
+  positionPuzzleLayer();
   GameState.isPlaying = true;
   SFX.startBackground();
 
@@ -509,7 +661,7 @@ function handlePuzzleSolved() {
   persisted.stats.puzzlesSolved++;
   const level = getCurrentLevelData();
   const isLastPuzzleInLevel = GameState.puzzleIndexInLevel + 1 >= level.puzzles.length;
-  fireSolveFlash(getCSSVar('--success') || '#2ee8b6', isLastPuzzleInLevel);
+  fireSolveFlash(RoomRender.COLOR.ink, isLastPuzzleInLevel);
   GameState.puzzleIndexInLevel++;
   if (GameState.puzzleIndexInLevel < level.puzzles.length) {
     mountCurrentPuzzle();
@@ -533,6 +685,10 @@ function handleLevelComplete() {
   if (level.id >= persisted.unlockedLevel && level.id < LEVELS.length) {
     persisted.unlockedLevel = level.id + 1;
   }
+  // Guests stop at the end of chapter one. Everything past it needs an account.
+  if (GameState.isGuest) {
+    persisted.unlockedLevel = Math.min(persisted.unlockedLevel, GUEST_MAX_LEVEL);
+  }
 
   const effectiveLimit = getEffectiveTimeLimit(level);
   if (timeTaken <= effectiveLimit * 0.6) GameState.combo++;
@@ -542,33 +698,19 @@ function handleLevelComplete() {
   persisted.stats.bestStreak = Math.max(persisted.stats.bestStreak, GameState.combo);
   persisted.stats.totalPlayTime = (persisted.stats.totalPlayTime || 0) + timeTaken;
 
-  let unlockedTheme = null;
-  Object.keys(THEME_UNLOCK_COMBOS).forEach(theme => {
-    if (GameState.combo >= THEME_UNLOCK_COMBOS[theme] && !persisted.unlockedThemes.includes(theme)) {
-      persisted.unlockedThemes.push(theme);
-      unlockedTheme = theme;
-    }
-  });
   savePersisted();
 
   $('complete-room-name').textContent = level.name;
   $('complete-time').textContent = timeTaken.toFixed(1);
   $('complete-combo').textContent = GameState.combo;
   $('complete-record').hidden = !isNewRecord;
-  const unlockEl = $('complete-unlock');
-  if (unlockedTheme) {
-    unlockEl.hidden = false;
-    unlockEl.textContent = `Room tint unlocked: ${unlockedTheme}.`;
-  } else {
-    unlockEl.hidden = true;
-  }
 
+  const guestEnd = GameState.isGuest && level.id >= GUEST_MAX_LEVEL;
   const nextBtn = $('btn-next-level');
-  if (level.id >= LEVELS.length) {
-    nextBtn.textContent = 'See Results';
-  } else {
-    nextBtn.textContent = 'Next Room';
-  }
+  $('complete-guest').hidden = !guestEnd;
+  if (guestEnd) nextBtn.textContent = 'Create an account';
+  else if (level.id >= LEVELS.length) nextBtn.textContent = 'See results';
+  else nextBtn.textContent = 'Next room';
 
   showOverlay('screen-level-complete');
 }
@@ -695,133 +837,35 @@ function updateGameplay(dt) {
 
 function positionPuzzleLayer() {
   const layer = $('puzzle-layer');
-  const size = GameState.displayedRoomSize;
-  const inset = (STAGE_BASE - size) / 2;
-  layer.style.left = inset + 'px';
-  layer.style.top = inset + 'px';
-  layer.style.width = size + 'px';
-  layer.style.height = size + 'px';
-}
-
-function getCSSVar(name) {
-  const v = getComputedStyle(document.body).getPropertyValue(name);
-  return v ? v.trim() : '';
-}
-
-function roundRectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+  // Percentages of the stage, so the puzzle tracks the room at any frame size.
+  const pct = (GameState.displayedRoomSize / STAGE_BASE) * 100;
+  const inset = (100 - pct) / 2;
+  layer.style.left = inset + '%';
+  layer.style.top = inset + '%';
+  layer.style.width = pct + '%';
+  layer.style.height = pct + '%';
 }
 
 function renderCanvas() {
   const canvas = $('game-canvas');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-
+  const W = canvas.width;
+  const H = canvas.height;
   const level = GameState.isPlaying || GameState.baseScreen === 'screen-game' ? getCurrentLevelData() : LEVELS[0];
-  const size = GameState.displayedRoomSize;
-  const inset = (W - size) / 2;
-  const compression = 1 - (size - level.crushRoomSize) / (level.initialRoomSize - level.crushRoomSize);
-  const activeWarning = GameState.isWarning && GameState.isPlaying;
-  const accent = activeWarning ? (getCSSVar('--danger') || '#ff5533') : levelAccent(level.id);
 
-  // Outer void
-  ctx.fillStyle = getCSSVar('--bg-panel-raised') || '#261838';
-  ctx.fillRect(0, 0, W, H);
-
-  // Vignette
-  const vig = ctx.createRadialGradient(W / 2, H / 2, size * 0.3, W / 2, H / 2, W * 0.55);
-  vig.addColorStop(0, 'transparent');
-  vig.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, W, H);
-
-  if (activeWarning && !isMotionReduced()) {
-    ctx.save();
-    ctx.globalAlpha = 0.08 + 0.05 * Math.sin(GameState.elapsed * 12);
-    ctx.fillStyle = getCSSVar('--danger') || '#ff5533';
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  }
-
-  // Floor
-  ctx.fillStyle = getCSSVar('--bg-floor') || '#0c0714';
-  roundRectPath(ctx, inset, inset, size, size, 18);
-  ctx.fill();
-
-  // Floor grid — denser as room shrinks
-  ctx.save();
-  roundRectPath(ctx, inset, inset, size, size, 18);
-  ctx.clip();
-  const gridStep = Math.max(20, 40 - compression * 15);
-  ctx.strokeStyle = `rgba(245, 235, 255, ${0.03 + compression * 0.04})`;
-  ctx.lineWidth = 1;
-  for (let x = inset; x <= inset + size; x += gridStep) {
-    ctx.beginPath(); ctx.moveTo(x, inset); ctx.lineTo(x, inset + size); ctx.stroke();
-  }
-  for (let y = inset; y <= inset + size; y += gridStep) {
-    ctx.beginPath(); ctx.moveTo(inset, y); ctx.lineTo(inset + size, y); ctx.stroke();
-  }
-  ctx.restore();
-
-  // Inner glow — intensifies with compression
-  ctx.save();
-  roundRectPath(ctx, inset + 8, inset + 8, size - 16, size - 16, 14);
-  ctx.strokeStyle = accent;
-  ctx.globalAlpha = 0.06 + compression * 0.12;
-  ctx.lineWidth = 20;
-  ctx.stroke();
-  ctx.restore();
-
-  // Corner stress brackets
-  const bracketLen = 16 + compression * 8;
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 2 + compression;
-  ctx.globalAlpha = 0.4 + compression * 0.4;
-  const corners = [
-    [inset, inset, 1, 1], [inset + size, inset, -1, 1],
-    [inset, inset + size, 1, -1], [inset + size, inset + size, -1, -1],
-  ];
-  corners.forEach(([cx, cy, dx, dy]) => {
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + dy * bracketLen);
-    ctx.lineTo(cx, cy);
-    ctx.lineTo(cx + dx * bracketLen, cy);
-    ctx.stroke();
+  ctx.clearRect(0, 0, W, H);
+  RoomRender.drawRoom(ctx, {
+    width: W,
+    height: H,
+    size: GameState.displayedRoomSize,
+    targetSize: GameState.targetRoomSize,
+    initialSize: level.initialRoomSize,
+    crushSize: level.crushRoomSize,
+    notches: level.shrinkNotches,
+    closed: GameState.currentNotch,
+    warning: GameState.isWarning && GameState.isPlaying,
   });
-  ctx.globalAlpha = 1;
-
-  // Wall border
-  ctx.save();
-  ctx.lineWidth = 3 + compression * 2;
-  ctx.strokeStyle = accent;
-  ctx.shadowColor = accent;
-  ctx.shadowBlur = activeWarning ? 32 : 12 + compression * 12;
-  roundRectPath(ctx, inset, inset, size, size, 18);
-  ctx.stroke();
-  ctx.restore();
-
-  // Compression rings (ghost walls)
-  if (compression > 0.2) {
-    const rings = Math.min(3, Math.floor(compression * 4));
-    for (let i = 1; i <= rings; i++) {
-      const offset = i * 6;
-      ctx.save();
-      ctx.globalAlpha = 0.06 * (rings - i + 1);
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 1;
-      roundRectPath(ctx, inset - offset, inset - offset, size + offset * 2, size + offset * 2, 18 + offset);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
   drawParticles(ctx);
 }
 
@@ -845,34 +889,60 @@ function gameLoopTick(timestamp) {
 }
 
 function switchAuthTab(tab) {
-  $('tab-signin').classList.toggle('active', tab === 'signin');
-  $('tab-signup').classList.toggle('active', tab === 'signup');
-  $('tab-signin').setAttribute('aria-selected', tab === 'signin');
-  $('tab-signup').setAttribute('aria-selected', tab === 'signup');
-  $('panel-signin').style.display = tab === 'signin' ? 'flex' : 'none';
-  $('panel-signup').style.display = tab === 'signup' ? 'flex' : 'none';
+  GameState.authTab = tab;
+  $('tab-signin').setAttribute('aria-selected', String(tab === 'signin'));
+  $('tab-signup').setAttribute('aria-selected', String(tab === 'signup'));
+  $('panel-signin').hidden = tab !== 'signin';
+  $('panel-signup').hidden = tab !== 'signup';
   $('signin-error').textContent = '';
   $('signup-error').textContent = '';
 }
 
-async function afterAuthSuccess(username) {
+async function afterAuthSuccess(username, options) {
+  const opts = options || {};
   GameState.username = username;
+  GameState.isGuest = false;
+  switchBaseScreen('screen-loading');
   persisted = await fetchProgress();
-  document.body.dataset.theme = persisted.currentTheme;
-  applyMotionPref();
-  SFX.setMuted(!persisted.soundOn);
-  syncDifficultyButtons();
-  syncSoundButtons();
-  syncMotionButtons();
-  renderThemeSwatches();
+  applyPersistedSettings();
   renderLevelGrid();
   updateMenuStats();
-  $('menu-player-tag').textContent = username.toUpperCase();
-  $('settings-username').textContent = `Signed in as ${username}`;
+  if (opts.offerCarry && hasGuestSave()) { showCarryPrompt(); return; }
+  finishAuthNavigation();
+}
 
-  if (!persisted.hasSeenIntro) switchBaseScreen('screen-intro');
-  else if (!persisted.hasSeenTutorial) openTutorial(true);
-  else switchBaseScreen('screen-menu');
+function showCarryPrompt() {
+  const count = Object.keys(guestChapterOneTimes()).length;
+  $('carry-body').textContent = count === 1
+    ? 'You cleared one room as a guest. Carrying it over keeps that best time.'
+    : `You cleared ${count} rooms as a guest. Carrying them over keeps those best times.`;
+  showOverlay('screen-carry');
+}
+
+async function decideCarry(carry) {
+  hideOverlay('screen-carry');
+  if (carry) {
+    const times = guestChapterOneTimes();
+    if (Object.keys(times).length) {
+      const { ok } = await apiFetch('/api/progress/import-guest', {
+        method: 'POST',
+        body: JSON.stringify({ bestTimes: times }),
+      });
+      if (ok) {
+        persisted = await fetchProgress();
+        applyPersistedSettings();
+        renderLevelGrid();
+        updateMenuStats();
+        clearGuestSave();
+      }
+    } else {
+      clearGuestSave();
+    }
+  } else {
+    clearGuestSave();
+  }
+  updateGuestEntry();
+  finishAuthNavigation();
 }
 
 function openTutorial(fromLanding) {
@@ -888,14 +958,7 @@ function renderTutorialStep() {
   $('tutorial-step-label').textContent = `Step ${GameState.tutorialStep + 1} of ${TUTORIAL_STEPS.length}`;
   $('tutorial-title').textContent = step.title;
   $('tutorial-body').textContent = step.body;
-  $('btn-tutorial-next').textContent = isLast ? "Let's Go" : 'Next';
-  const dots = $('tutorial-dots');
-  dots.innerHTML = '';
-  TUTORIAL_STEPS.forEach((_, i) => {
-    const dot = document.createElement('span');
-    if (i === GameState.tutorialStep) dot.classList.add('on');
-    dots.appendChild(dot);
-  });
+  $('btn-tutorial-next').textContent = isLast ? 'Start the first room' : 'Next';
 }
 
 function advanceTutorial() {
@@ -920,7 +983,8 @@ function syncSoundButtons() {
   document.querySelectorAll('.diff-btn[data-sound]').forEach(btn => {
     btn.classList.toggle('active', (btn.dataset.sound === 'on') === persisted.soundOn);
   });
-  $('btn-sound-toggle').textContent = persisted.soundOn ? '🔊' : '🔇';
+  $('btn-sound-toggle').textContent = persisted.soundOn ? 'Sound on' : 'Sound off';
+  $('btn-sound-toggle').setAttribute('aria-pressed', String(persisted.soundOn));
 }
 function syncMotionButtons() {
   document.querySelectorAll('.diff-btn[data-motion]').forEach(btn => {
@@ -936,13 +1000,21 @@ function setSound(on) {
 
 async function initGame() {
   bindEvents();
-  updateStageScale();
+  positionPuzzleLayer();
   requestAnimationFrame(gameLoopTick);
 
-  switchBaseScreen('screen-loading');
+  switchBaseScreen('screen-landing');
+  setAuthChecking(true);
+  startPreviews();
+
   const existingUser = await fetchMe();
-  if (existingUser) await afterAuthSuccess(existingUser);
-  else switchBaseScreen('screen-landing');
+  if (existingUser) {
+    await afterAuthSuccess(existingUser);
+    return;
+  }
+  setAuthChecking(false);
+  updateGuestEntry();
+  startPreviews();
 }
 
 document.addEventListener('DOMContentLoaded', initGame);
