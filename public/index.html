@@ -47,7 +47,7 @@
 
       <form class="terminal-panel" id="panel-signin" autocomplete="on">
         <label class="terminal-label" for="signin-username">Username</label>
-        <input class="terminal-input" id="signin-username" type="text" maxlength="16" autocomplete="username" required>
+        <input class="terminal-input" id="signin-username" type="text" autocomplete="username" aria-describedby="signin-error" required>
         <label class="terminal-label" for="signin-password">Password</label>
         <input class="terminal-input" id="signin-password" type="password" autocomplete="current-password" required>
         <p class="terminal-error" id="signin-error" role="alert"></p>
@@ -56,7 +56,8 @@
 
       <form class="terminal-panel" id="panel-signup" autocomplete="on" style="display:none;">
         <label class="terminal-label" for="signup-username">Username</label>
-        <input class="terminal-input" id="signup-username" type="text" maxlength="16" placeholder="3–16 characters" autocomplete="username" required>
+        <input class="terminal-input" id="signup-username" type="text" autocomplete="username" aria-describedby="signup-username-hint signup-error" required>
+        <p class="terminal-hint" id="signup-username-hint">3 to 24 characters: letters, numbers, underscores.</p>
         <label class="terminal-label" for="signup-password">Password</label>
         <input class="terminal-input" id="signup-password" type="password" placeholder="At least 6 characters" autocomplete="new-password" required>
         <label class="terminal-label" for="signup-confirm">Confirm password</label>

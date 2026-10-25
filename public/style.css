@@ -212,6 +212,7 @@ button { font-family: inherit; cursor: pointer; }
 .terminal-input::placeholder { color: var(--text-muted); }
 .terminal-note { text-align: left; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; margin-top: 8px; }
 .terminal-error { text-align: left; font-size: 0.78rem; color: var(--danger); min-height: 1.1em; }
+.terminal-hint { text-align: left; font-size: 0.75rem; color: var(--text-muted); margin-top: -4px; }
 
 /* ---------------- Title ---------------- */
 .game-title {

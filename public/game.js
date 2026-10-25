@@ -82,6 +82,33 @@ async function savePersisted() {
   catch (e) { console.warn('Could not save progress:', e); }
 }
 
+const USERNAME_MIN = 3;
+const USERNAME_MAX = 24;
+const USERNAME_CHARS_RE = /^[A-Za-z0-9_]+$/;
+
+// Mirrors the rule in src/auth.js. Nothing is truncated: an over-long name is
+// refused with a message so the player can see what they actually typed.
+function usernameProblem(rawValue) {
+  const username = rawValue.trim();
+  if (!username) return 'Enter a username.';
+  if (username.includes('@')) return 'Use your username, not an email.';
+  if (username.length < USERNAME_MIN) return `Usernames are at least ${USERNAME_MIN} characters.`;
+  if (username.length > USERNAME_MAX) return `Usernames are at most ${USERNAME_MAX} characters.`;
+  if (!USERNAME_CHARS_RE.test(username)) return 'Letters, numbers, and underscores only.';
+  return null;
+}
+
+// The email message shows the moment an @ is typed, and clears itself once the
+// character is gone.
+function bindUsernameField(inputId, errorId) {
+  const input = $(inputId);
+  const error = $(errorId);
+  input.addEventListener('input', () => {
+    if (input.value.includes('@')) error.textContent = 'Use your username, not an email.';
+    else if (error.textContent === 'Use your username, not an email.') error.textContent = '';
+  });
+}
+
 async function signUp(username, password) {
   return apiFetch('/api/auth/signup', { method: 'POST', body: JSON.stringify({ username, password }) });
 }
@@ -325,6 +352,8 @@ function bindEvents() {
 
   $('tab-signin').addEventListener('click', () => switchAuthTab('signin'));
   $('tab-signup').addEventListener('click', () => switchAuthTab('signup'));
+  bindUsernameField('signin-username', 'signin-error');
+  bindUsernameField('signup-username', 'signup-error');
 
   $('panel-signin').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -332,6 +361,8 @@ function bindEvents() {
     const username = $('signin-username').value.trim();
     const password = $('signin-password').value;
     $('signin-error').textContent = '';
+    const problem = usernameProblem(username);
+    if (problem) { $('signin-error').textContent = problem; $('signin-username').focus(); return; }
     const { ok, data } = await signIn(username, password);
     if (!ok) { $('signin-error').textContent = data.error || 'Could not reach the room.'; return; }
     await afterAuthSuccess(data.username);
@@ -344,6 +375,8 @@ function bindEvents() {
     const password = $('signup-password').value;
     const confirm = $('signup-confirm').value;
     $('signup-error').textContent = '';
+    const problem = usernameProblem(username);
+    if (problem) { $('signup-error').textContent = problem; $('signup-username').focus(); return; }
     if (password !== confirm) { $('signup-error').textContent = 'Passwords do not match.'; return; }
     const { ok, data } = await signUp(username, password);
     if (!ok) { $('signup-error').textContent = data.error || 'Could not reach the room.'; return; }
