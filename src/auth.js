@@ -25,6 +25,9 @@ const COOKIE_OPTS = {
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 24;
 const USERNAME_CHARS_RE = /^[A-Za-z0-9_]+$/;
+// Existing accounts keep working: this rule only applies when a password is
+// chosen. Sign-in never checks length.
+const PASSWORD_MIN = 10;
 
 // Usernames are stored and looked up in one canonical form, so "Ada" and
 // "ada" are the same account on both register and login.
@@ -68,8 +71,8 @@ router.post('/signup', (req, res) => {
   if (problem) {
     return res.status(400).json({ error: problem });
   }
-  if (typeof password !== 'string' || password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  if (typeof password !== 'string' || password.length < PASSWORD_MIN) {
+    return res.status(400).json({ error: `Password must be at least ${PASSWORD_MIN} characters.` });
   }
 
   const existing = db.prepare('SELECT id FROM users WHERE lower(username) = ?').get(username);
