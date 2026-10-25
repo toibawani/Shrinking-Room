@@ -34,7 +34,7 @@ async function openPage(width = 1440, height = 900, reducedMotion = 'no-preferen
 // 1. Create an account through the form with a name longer than 16 characters.
 {
   const { context, page } = await openPage();
-  await page.getByRole('tab', { name: /sign up/i }).click();
+  await page.getByRole('tab', { name: 'Create account' }).click();
   const user = page.locator('#signup-username');
   await user.pressSequentially(longName, { delay: 8 });
   check('signup field holds the whole username', (await user.inputValue()) === longName, `${longName.length} characters`);
@@ -80,7 +80,7 @@ for (const [label, name, pass] of [
 // 4. An @ in the username is called out at once, before submit.
 {
   const { context, page } = await openPage();
-  await page.getByRole('tab', { name: /sign up/i }).click();
+  await page.getByRole('tab', { name: 'Create account' }).click();
   const user = page.locator('#signup-username');
   await user.pressSequentially(EMAIL, { delay: 10 });
   await page.waitForFunction(() => document.getElementById('signup-error').textContent.trim().length > 0);
@@ -94,7 +94,7 @@ for (const [label, name, pass] of [
 // 5. A 30 character name is refused with a message and never sent.
 {
   const { context, page, requests } = await openPage();
-  await page.getByRole('tab', { name: /sign up/i }).click();
+  await page.getByRole('tab', { name: 'Create account' }).click();
   const typed = 'a'.repeat(30);
   await page.locator('#signup-username').pressSequentially(typed, { delay: 5 });
   check('30 characters stay in the field', (await page.locator('#signup-username').inputValue()) === typed);
