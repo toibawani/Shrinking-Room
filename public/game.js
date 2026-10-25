@@ -641,6 +641,256 @@ function mountCurrentPuzzle() {
   $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type) + multiTag;
 }
 
+// Triage room integration
+function startTriageRoom() {
+  if (GameState.isGuest) { showLanding(); return; }
+  destroyActivePuzzle();
+  GameState.currentLevelIndex = LEVELS.length - 1; // triageRoom is level 13
+  GameState.elapsed = 0;
+  GameState.currentNotch = 0;
+  GameState.isWarning = false;
+  GameState.lastWarningBeep = 0;
+  GameState.isPaused = false;
+  GameState.displayedRoomSize = INITIAL_ROOM_SIZE;
+  GameState.targetRoomSize = INITIAL_ROOM_SIZE;
+  GameState.bolts = 0;
+  GameState.boltsNeeded = 2;
+
+  // Initialize triage room state using room-sim
+  const triageRoom = createRoom(42); // seeded for reproducibility
+  GameState.triageRoom = triageRoom;
+
+  // Reset all stations to unsolved
+  triageRoom.stations.forEach(s => { s.solved = false; s.sealed = false; });
+
+  $('hud-level').textContent = 'Triage';
+  $('hud-chapter').textContent = '';
+  $('hud-best').textContent = '';
+
+  const streakWrap = $('hud-streak-wrap');
+  streakWrap.hidden = true;
+
+  $('stage-objective').textContent = 'Triage: solve the three stations'
+  $('stage-frame').classList.remove('warning');
+  $('compression-fill').style.width = '0%';
+  $('compression-fill').classList.remove('high');
+  $('compression-fill').hidden = true;
+
+  // Show the tagline
+  $('tagline').textContent = 'Solve before the walls reach it.';
+  $('tagline').hidden = false;
+
+  switchBaseScreen('screen-game');
+  positionPuzzleLayer();
+  GameState.isPlaying = true;
+  SFX.startBackground();
+
+  // Position puzzle layer for triage room
+  const layer = $('puzzle-layer');
+  layer.innerHTML = '';
+  // Render the three stations as interactive puzzle mounts
+  renderTriageStations(triageRoom.stations);
+
+  GameState.puzzleIndexInLevel = 0;
+}
+
+function renderTriageStations(stations) {
+  const container = $('puzzle-layer');
+  if (!container) return;
+
+  stations.forEach((station, idx) => {
+    const stationEl = document.createElement('div');
+    stationEl.className = 'triage-station';
+    stationEl.dataset.index = idx;
+    stationEl.dataset.type = station.type;
+    stationEl.innerHTML = `<span class="triage-station-label">${station.type}</span>`;
+    stationEl.addEventListener('click', () => openTriageStation(idx));
+    container.appendChild(stationEl);
+  });
+}
+
+let openTriageStationTimeout = null;
+function openTriageStation(stationIdx) {
+  const station = GameState.triageRoom.stations[stationIdx];
+  if (station.solved || station.sealed) return;
+
+  // Expand station to full screen in 180 ms, no fade
+  stationEl = $(`.triage-station[data-index="${stationIdx}"]`);
+  if (stationEl) {
+    stationEl.classList.add('expanded');
+    setTimeout(() => {
+      // Load the existing puzzle module
+      const puzzleType = station.puzzleType || 'rotatingLock';
+      const puzzleConfig = station.puzzleParams || {};
+      destroyActivePuzzle();
+      GameState.activePuzzle = Puzzles.create(puzzleType, puzzleConfig, $('puzzle-layer'), () => handleTriageStationSolved(stationIdx));
+      const multiTag = ' · station ' + (stationIdx + 1) + '/3';
+      $('stage-hint').textContent = Puzzles.hint(puzzleType) + multiTag;
+    }, 180);
+  }
+}
+
+function handleTriageStationSolved(stationIdx) {
+  SFX.correct();
+  // Mark station as solved in room-sim
+  GameState.triageRoom.stations[stationIdx].solved = true;
+  GameState.bolts++;
+
+  // Push walls back by 8 percent
+  const shrinkAmount = GameState.targetRoomSize * 0.08;
+  GameState.targetRoomSize = Math.min(INITIAL_ROOM_SIZE, GameState.targetRoomSize + shrinkAmount);
+
+  // Check win condition
+  if (GameState.bolts >= GameState.boltsNeeded) {
+    handleLevelComplete();
+    return;
+  }
+
+  // Close station and return to room
+  const stationEl = $(`.triage-station[data-index="${stationIdx}"]`);
+  if (stationEl) stationEl.classList.remove('expanded');
+
+  // Remove puzzle and restore room
+  destroyActivePuzzle();
+  // Continue showing the room with remaining stations
+  renderTriageStations(GameState.triageRoom.stations);
+  $('stage-hint').textContent = '';
+}
+
+function tryWrongAnswerTriage() {
+  // Pull walls in by 3 percent with hard step and thud
+  const penaltyAmount = GameState.targetRoomSize * 0.03;
+  GameState.targetRoomSize = Math.max(MIN_ROOM_SIZE, GameState.targetRoomSize - penaltyAmount);
+
+  // Thud sound
+  SFX.wrong();
+
+  // If room reaches minimum size, game over
+  if (GameState.targetRoomSize <= MIN_ROOM_SIZE) {
+    GameState.isPlaying = false;
+    GameState.combo = 0;
+    destroyActivePuzzle();
+    SFX.stopBackground();
+    SFX.gameOver();
+    $('game-over-time').textContent = GameState.elapsed.toFixed(1);
+    $('game-over-tip').textContent = GAME_OVER_TIPS[Math.floor(Math.random() * GAME_OVER_TIPS.length)];
+    showOverlay('screen-game-over');
+  }
+}
+
+function updateTriageRoom(dt) {
+  if (!GameState.isPlaying || !GameState.triageRoom) return;
+
+  // Simulate room shrinking using room-sim
+  const deltaMs = dt * 1000;
+  simulateRoom(GameState.triageRoom, deltaMs);
+
+  // Update target room size based on simulation
+  GameState.targetRoomSize = Math.max(MIN_ROOM_SIZE, GameState.triageRoom.roomSize);
+
+  // Check for station sealing (wall reaching station)
+  GameState.triageRoom.stations.forEach((station, idx) => {
+    if (!station.solved && !station.sealed) {
+      // Check if wall has reached this station
+      const distance = Math.abs(station.x * GameState.targetRoomSize - 0); // simplified check
+      if (distance < 20) { // station is near wall edge
+        station.sealed = true;
+        GameState.triageRoom.crushed++;
+        SFX.shrink(); // crush sound
+        // Station is now sealed, cannot be opened
+        const stationEl = $(`.triage-station[data-index="${idx}"]`);
+        if (stationEl) {
+          stationEl.classList.add('sealed');
+          // Short crush animation
+          setTimeout(() => {
+            stationEl.classList.add('crushed');
+          }, 40);
+        }
+      }
+    }
+  });
+
+  // Check win condition: 2 of 3 bolts
+  if (GameState.bolts >= GameState.boltsNeeded) {
+    handleLevelComplete();
+    return;
+  }
+
+  // Check lose condition: room at minimum size
+  if (GameState.triageRoom.roomSize <= MIN_ROOM_SIZE) {
+    GameState.isPlaying = false;
+    GameState.combo = 0;
+    destroyActivePuzzle();
+    SFX.stopBackground();
+    SFX.gameOver();
+    $('game-over-time').textContent = GameState.elapsed.toFixed(1);
+    $('game-over-tip').textContent = GAME_OVER_TIPS[Math.floor(Math.random() * GAME_OVER_TIPS.length)];
+    showOverlay('screen-game-over');
+  }
+}
+
+
+// Hook into the game loop
+function gameLoopTick(timestamp) {
+  if (!GameState.lastTimestamp) GameState.lastTimestamp = timestamp;
+  let dt = (timestamp - GameState.lastTimestamp) / 1000;
+  GameState.lastTimestamp = timestamp;
+  dt = Math.min(dt, 0.1);
+
+  if (GameState.isPlaying && !GameState.isPaused) {
+    if (GameState.triageRoom) {
+      updateTriageRoom(dt);
+    } else {
+      updateGameplay(dt);
+    }
+    GameState.displayedRoomSize += (GameState.targetRoomSize - GameState.displayedRoomSize) * Math.min(1, dt * 6);
+    updateShakeState(dt);
+  }
+  updateCompressionFromRoom();
+  updateParticles(dt);
+  positionPuzzleLayer();
+  renderCanvas();
+
+  requestAnimationFrame(gameLoopTick);
+}
+
+// Add CSS for triage stations
+const style = document.createElement('style');
+style.textContent = `
+.triage-station {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: var(--bone);
+  border: var(--edge);
+  border-radius: var(--radius-panel);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--t2);
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.triage-station:hover { background: var(--ink); color: var(--bone); }
+.triage-station.expanded { width: 120px; height: 120px; font-size: var(--t3); }
+.triage-station.sealed { background: var(--signal); color: var(--bone); pointer-events: none; }
+.triage-station.sealed::after { content: '✕'; display: block; width: 100%; height: 120px; line-height: 120px; text-align: center; }
+`;
+document.head.appendChild(style);
+
+
+function mountCurrentPuzzle() {
+  destroyActivePuzzle();
+  const level = getCurrentLevelData();
+  const puzzleConfig = level.puzzles[GameState.puzzleIndexInLevel];
+  const layer = $('puzzle-layer');
+  layer.innerHTML = '';
+  GameState.activePuzzle = Puzzles.create(puzzleConfig.type, puzzleConfig.params, layer, handlePuzzleSolved);
+
+  const multiTag = level.puzzles.length > 1 ? ` · ${GameState.puzzleIndexInLevel + 1}/${level.puzzles.length}` : '';
+  $('stage-hint').textContent = Puzzles.hint(puzzleConfig.type) + multiTag;
+}
+
 function fireSolveFlash(color, big) {
   if (!isMotionReduced()) {
     const flash = $('solve-flash');
@@ -835,16 +1085,6 @@ function updateGameplay(dt) {
   SFX.updateBackground(progress);
 }
 
-function positionPuzzleLayer() {
-  const layer = $('puzzle-layer');
-  // Percentages of the stage, so the puzzle tracks the room at any frame size.
-  const pct = (GameState.displayedRoomSize / STAGE_BASE) * 100;
-  const inset = (100 - pct) / 2;
-  layer.style.left = inset + '%';
-  layer.style.top = inset + '%';
-  layer.style.width = pct + '%';
-  layer.style.height = pct + '%';
-}
 
 function renderCanvas() {
   const canvas = $('game-canvas');

@@ -73,6 +73,52 @@ const LEVELS = [
       { type: 'wordForge', params: { wordsNeeded: 3, minLength: 5 } },
       { type: 'rotatingLock', params: { dials: 3, segments: 9, linked: true } },
     ] },
+
+  // Triage room — a single vertical slice for the new triage mechanic.
+  // A square arena where walls move inward on an eased curve.
+  // The room holds 3 stations at seeded positions: a lock, a wire panel,
+  // and a pattern wall. Click or tap one to open it. It expands to full
+  // screen in 180 ms, no fade, and runs the EXISTING puzzle module.
+  // While it is open the walls KEEP MOVING. A slim strip along the screen
+  // edge shows how close each wall is and which stations are in danger,
+  // so the player can bail out and return to the room.
+  // When a wall reaches a station, that station is sealed with a short
+  // crush animation (400 ms) and can never be opened again.
+  // Solving a station pushes all walls back by 8 percent of the room
+  // and gives the player a bolt.
+  // Every wrong answer pulls the walls in by 3 percent with a hard step
+  // and a thud.
+  // Win: collect 2 of 3 bolts, then click the door in the room's center.
+  // Fail: the room reaches its minimum size. The door is always inside
+  // the minimum size.
+  // Station difficulty is shown as pips. The edge stations are easy and
+  // doomed. The center station is hard and safe. That is the decision the
+  // player makes, so tune the slice to make it feel like a real choice.
+  // First room, one line of text only: "Solve before the walls reach it."
+  // No tutorial screens.
+  // Retry in under 300 ms with no modal.
+  // Score is the percentage of the room left at the win.
+  triageRoom: {
+    id: 13,
+    name: 'Triage',
+    subtitle: 'Pressure test.',
+    timeLimit: 30,
+    initialRoomSize: 520,
+    minRoomSize: 100,
+    boltsNeeded: 2,
+    shrinkNotches: 4,
+    crushRoomSize: 190,
+    // Three stations at seeded positions
+    stations: [
+      { type: 'lock', x: 0.25, y: 0.5, difficulty: 1, seed: 42 },
+      { type: 'wirePanel', x: 0.5, y: 0.5, difficulty: 2, seed: 43 },
+      { type: 'patternWall', x: 0.75, y: 0.5, difficulty: 3, seed: 44 }
+    ],
+    // Puzzle types for each station (reproducible from seed)
+    puzzleTypes: ['rotatingLock', 'wireConnect', 'patternCompletion'],
+    // UI: one line of text only
+    tagline: 'Solve before the walls reach it.'
+  }
 ];
 
 function getChapter(chapterId) {

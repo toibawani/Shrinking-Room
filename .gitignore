@@ -15,3 +15,4 @@ npm-debug.log*
 
 # Local database
 data/
+.freebuff/

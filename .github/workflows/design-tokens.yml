@@ -1,0 +1,21 @@
+name: Design Tokens Gate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  ban-design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ban-design check
+        run: node scripts/ban-design-check.mjs
+        continue-on-error: false
+      - name: Fail if banned design elements detected
+        if: failure()
+        run: |
+          echo "❌ Banned design elements detected — commit blocked."
+          exit 1
