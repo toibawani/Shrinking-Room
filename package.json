@@ -16,5 +16,8 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
 }
